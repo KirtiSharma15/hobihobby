@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+
+# Environment files (NEVER commit these!)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Build outputs
+dist/
+build/
+web-build/
+*.tsbuildinfo
+
+# Expo
+.expo/
+
+# Native builds
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+ios/
+android/
+
+# Metro
+.metro-health-check*
+
+# Debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Backend logs
+backend/logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+
+# Secrets (NEVER commit!)
+*.pem
+serviceAccount.json
+firebase-*.json

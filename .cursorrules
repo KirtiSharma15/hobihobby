@@ -1,0 +1,710 @@
+# HobiHobby AI Constitution & Cursor Rules
+
+## Project Overview
+HobiHobby is an AI-powered cross-platform hobby discovery application built as a monorepo with:
+- **Backend**: Express.js API with Firebase, Stripe, MongoDB
+- **Mobile**: React Native (Expo) with TypeScript
+- **Web**: React + Vite with TypeScript and TailwindCSS
+- **Shared**: Shared utilities, types, and Redux slices
+
+---
+
+## Core Principles
+
+### 1. Code Quality & Standards
+- **TypeScript Strict Mode**: Always use strict TypeScript. No `any` types unless absolutely necessary (use `unknown` first)
+- **Type Safety**: Define explicit types for all functions, props, and data structures
+- **Consistency**: Follow existing code patterns and architecture. When in doubt, match the existing style
+- **Readability**: Write self-documenting code with clear variable names and structure
+- **DRY Principle**: Avoid code duplication. Extract reusable logic to shared utilities
+- **Single Responsibility**: Each function, component, and module should have one clear purpose
+
+### 2. Architecture & Structure
+
+#### Monorepo Organization
+- **Backend** (`backend/`): Express.js API server
+  - Controllers handle business logic
+  - Routes define endpoints and middleware chains
+  - Middleware for auth, validation, error handling
+  - Services for external integrations (Firebase, Stripe)
+  - Models for database schemas
+  - Utils for shared backend utilities
+
+- **Mobile** (`mobile/`): React Native/Expo app
+  - Use feature-based organization in `features/`
+  - Shared UI components in `components/ui/`
+  - Screens in `screens/`
+  - Navigation in `navigation/`
+  - Hooks in `hooks/`
+  - Store slices in `store/` (for local-only state) or `features/`
+
+- **Web** (`web/`): React + Vite web app
+  - Pages in `pages/`
+  - Components organized by feature/domain
+  - Shared UI components in `components/ui/`
+  - Hooks in `hooks/`
+  - Router configuration in `router/`
+
+- **Shared** (`shared/`): Cross-platform code
+  - Types/interfaces in `types/`
+  - Redux slices in `store/`
+  - Utilities in `utils/`
+  - API client in `api/`
+  - **CRITICAL**: Shared code must be platform-agnostic (no DOM, no React Native specific APIs)
+
+#### File Naming Conventions
+- **React Components**: PascalCase (e.g., `HobbyCard.tsx`, `UserProfile.tsx`)
+- **Utilities/Hooks**: camelCase (e.g., `useAuth.ts`, `formatDate.ts`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `API_ENDPOINTS.ts`)
+- **Types/Interfaces**: PascalCase (e.g., `User.ts`, `Hobby.ts`)
+- **Backend Files**: camelCase (e.g., `authController.js`, `userService.js`)
+- **Folders**: kebab-case or camelCase (match existing patterns)
+
+---
+
+## TypeScript Guidelines
+
+### Type Definitions
+```typescript
+// ✅ GOOD: Explicit types
+interface User {
+  id: string;
+  email: string;
+  preferences: UserPreferences;
+}
+
+function getUser(id: string): Promise<User> { }
+
+// ❌ BAD: Avoid any
+function getUser(id: any): any { }
+
+// ✅ GOOD: Use unknown when type is truly unknown
+function processData(data: unknown): void {
+  if (typeof data === 'object' && data !== null) {
+    // Type narrowing
+  }
+}
+```
+
+### Strict TypeScript Rules
+- Enable `strict: true` in all tsconfig.json files
+- Use `noUnusedLocals: true` and `noUnusedParameters: true`
+- Prefer `interface` over `type` for object shapes (except unions/intersections)
+- Use const assertions for readonly data: `as const`
+- Export types from shared when used across platforms
+
+### Type Safety Patterns
+```typescript
+// ✅ Use discriminated unions for state
+type LoadingState = 
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: string };
+
+// ✅ Use type guards
+function isUser(obj: unknown): obj is User {
+  return typeof obj === 'object' && obj !== null && 'id' in obj && 'email' in obj;
+}
+```
+
+---
+
+## React/React Native Guidelines
+
+### Component Structure
+```typescript
+// ✅ Preferred component structure
+import React, { useState, useEffect } from 'react';
+import { View, Text } from 'react-native';
+import { useAppSelector } from '@/hooks/useAppDispatch';
+import type { ComponentProps } from './types';
+
+interface HobbyCardProps {
+  hobby: Hobby;
+  onPress?: () => void;
+}
+
+export const HobbyCard: React.FC<HobbyCardProps> = ({ hobby, onPress }) => {
+  // 1. Hooks
+  const theme = useAppSelector(state => state.ui.theme);
+  
+  // 2. State
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // 3. Effects
+  useEffect(() => {
+    // Effect logic
+  }, []);
+  
+  // 4. Handlers
+  const handlePress = () => {
+    onPress?.();
+  };
+  
+  // 5. Render
+  return (
+    <View>
+      <Text>{hobby.name}</Text>
+    </View>
+  );
+};
+```
+
+### Hooks Best Practices
+- Use custom hooks to extract reusable logic
+- Prefer `useCallback` for event handlers passed to child components
+- Use `useMemo` for expensive computations, not for simple value transformations
+- Always include dependencies in dependency arrays
+- Use `useAppDispatch` and `useAppSelector` hooks for Redux (from shared or hooks)
+
+### Component Patterns
+- **Functional Components**: Always use functional components with hooks
+- **Props Interface**: Always define explicit props interfaces
+- **Default Props**: Use default parameters instead of defaultProps
+- **Children**: Type children explicitly: `React.ReactNode` or specific component types
+- **Refs**: Use `React.forwardRef` when ref forwarding is needed
+
+### Performance Optimization
+- Use `React.memo` for expensive components that re-render frequently
+- Memoize callbacks with `useCallback` when passed to memoized children
+- Lazy load routes and heavy components with `React.lazy` and `Suspense`
+- Avoid inline object/array creation in render (use `useMemo` or move outside component)
+
+---
+
+## Redux Toolkit Guidelines
+
+### Slice Structure
+```typescript
+// ✅ Preferred slice pattern
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import type { Hobby, HobbyState } from '@shared/types';
+
+const initialState: HobbyState = {
+  hobbies: [],
+  isLoading: false,
+  error: null,
+};
+
+const hobbySlice = createSlice({
+  name: 'hobbies',
+  initialState,
+  reducers: {
+    setHobbies: (state, action: PayloadAction<Hobby[]>) => {
+      state.hobbies = action.payload;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
+  },
+});
+
+export const { setHobbies, setLoading } = hobbySlice.actions;
+export default hobbySlice.reducer;
+```
+
+### Redux Best Practices
+- Use Redux Toolkit for all state management
+- Keep slices in `shared/store/` for cross-platform state
+- Use `createAsyncThunk` for async operations
+- Normalize state when storing entities (use entities/ids pattern for lists)
+- Selectors: Use `createSelector` from Reselect for derived state
+- Keep components lean: dispatch actions and read state, logic in slices/thunks
+
+---
+
+## Backend Guidelines (Express.js)
+
+### Controller Pattern
+```javascript
+// ✅ Preferred controller structure
+const asyncHandler = require('express-async-handler');
+const { hobbyService } = require('../services/hobbyService');
+const { validateRequest } = require('../middleware/validation');
+
+const getHobbies = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, search } = req.query;
+  
+  const hobbies = await hobbyService.getHobbies({ page, limit, search });
+  
+  res.status(200).json({
+    success: true,
+    data: hobbies,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+    },
+  });
+});
+
+module.exports = {
+  getHobbies,
+};
+```
+
+### Backend Best Practices
+- **Always use `asyncHandler`** for async route handlers to catch errors
+- **Validation**: Use `express-validator` or `joi` for all input validation
+- **Error Handling**: Use centralized error handler middleware
+- **Response Format**: Consistent JSON response format:
+  ```javascript
+  {
+    success: boolean,
+    data: any,
+    error?: string,
+    message?: string,
+    pagination?: object
+  }
+  ```
+- **Status Codes**: Use appropriate HTTP status codes (200, 201, 400, 401, 403, 404, 500)
+- **Security**: 
+  - Never expose sensitive data in responses
+  - Validate and sanitize all inputs
+  - Use rate limiting for public endpoints
+  - Implement authentication middleware on protected routes
+  - Use Helmet for security headers
+
+### Middleware Order
+1. Security (helmet, CORS)
+2. Body parsing (express.json, express.urlencoded)
+3. Rate limiting
+4. Authentication
+5. Validation
+6. Route handlers
+7. Error handling (last)
+
+### Database Patterns
+- Use Mongoose models for MongoDB operations
+- Always handle database errors gracefully
+- Use transactions for multi-step operations
+- Implement proper indexing for query performance
+- Use connection pooling
+
+---
+
+## API Design Principles
+
+### RESTful Endpoints
+- Use RESTful conventions: GET, POST, PUT, DELETE, PATCH
+- Resource-based URLs: `/api/hobbies`, `/api/hobbies/:id`, `/api/users/:id/preferences`
+- Use plural nouns for collections
+- Nested resources only one level deep: `/api/hobbies/:id/comments` (not deeper)
+
+### Request/Response Patterns
+```typescript
+// ✅ Request pattern
+POST /api/auth/login
+{
+  email: string;
+  password: string;
+}
+
+// ✅ Response pattern
+{
+  success: true,
+  data: {
+    user: User;
+    token: string;
+    refreshToken: string;
+  }
+}
+
+// ❌ Error response
+{
+  success: false,
+  error: "Invalid credentials",
+  message: "The email or password is incorrect"
+}
+```
+
+### Pagination
+- Always paginate large collections
+- Use `page` and `limit` query parameters
+- Return pagination metadata in response
+- Default: `page=1`, `limit=10`, max `limit=100`
+
+### Filtering & Sorting
+- Use query parameters: `?search=keyword&category=photography&sort=popular`
+- Document available filters and sort options
+- Validate query parameters server-side
+
+---
+
+## Security Best Practices
+
+### Authentication & Authorization
+- Use Firebase Auth for user authentication
+- Implement JWT tokens for API authentication
+- Store tokens securely (httpOnly cookies or secure storage)
+- Implement refresh token rotation
+- Use role-based access control (RBAC) for admin endpoints
+- Never trust client-side validation alone
+
+### Data Protection
+- Sanitize all user inputs
+- Use parameterized queries (Mongoose handles this)
+- Encrypt sensitive data at rest
+- Use HTTPS in production
+- Implement CORS properly (whitelist origins)
+- Rate limit API endpoints to prevent abuse
+
+### Secrets Management
+- Never commit secrets to version control
+- Use environment variables for all configuration
+- Use `.env` files (gitignored) for local development
+- Document required environment variables in `env.example`
+- Use secure vaults for production secrets
+
+---
+
+## Error Handling
+
+### Frontend Error Handling
+```typescript
+// ✅ Error handling pattern
+try {
+  const data = await api.getHobbies();
+  // Handle success
+} catch (error) {
+  if (error instanceof ApiError) {
+    // Handle API error
+    showErrorToast(error.message);
+  } else {
+    // Handle unexpected error
+    logError(error);
+    showGenericError();
+  }
+}
+```
+
+### Backend Error Handling
+```javascript
+// ✅ Centralized error handler
+const errorHandler = (err, req, res, next) => {
+  logger.error(err.stack);
+  
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+};
+```
+
+### Error Types
+- **400 Bad Request**: Invalid input/validation errors
+- **401 Unauthorized**: Missing or invalid authentication
+- **403 Forbidden**: Authenticated but insufficient permissions
+- **404 Not Found**: Resource doesn't exist
+- **409 Conflict**: Resource conflict (e.g., duplicate email)
+- **422 Unprocessable Entity**: Valid format but business logic error
+- **500 Internal Server Error**: Server-side errors (log these)
+
+---
+
+## Testing Guidelines
+
+### Test Structure
+- Unit tests for utilities, hooks, and pure functions
+- Integration tests for API endpoints and services
+- Component tests for React components (testing-library)
+- E2E tests for critical user flows (optional but recommended)
+
+### Testing Best Practices
+- Write tests before or alongside implementation (TDD when possible)
+- Test edge cases and error scenarios
+- Mock external dependencies (APIs, Firebase, Stripe)
+- Use descriptive test names: `should return error when email is invalid`
+- Keep tests independent and isolated
+- Aim for meaningful coverage (>80%, focus on critical paths)
+
+---
+
+## Code Style & Formatting
+
+### General Rules
+- Use 2 spaces for indentation (JavaScript/TypeScript)
+- Use single quotes for strings (JavaScript), double quotes for JSX attributes
+- Use trailing commas in multiline objects/arrays
+- Use semicolons (JavaScript) - TypeScript can omit in some contexts
+- Maximum line length: 100 characters (be reasonable)
+- Use meaningful variable names: `userHobbies` not `uh`, `isLoading` not `loading`
+
+### Import Organization
+```typescript
+// 1. External libraries
+import React from 'react';
+import { useDispatch } from 'react-redux';
+
+// 2. Internal absolute imports
+import { HobbyCard } from '@/components/HobbyCard';
+import { useAuth } from '@/hooks/useAuth';
+
+// 3. Relative imports
+import { formatDate } from './utils';
+import type { HobbyProps } from './types';
+
+// 4. Type-only imports (use `import type`)
+import type { User, Hobby } from '@shared/types';
+```
+
+### Naming Conventions
+- **Variables/Functions**: camelCase (`getUserHobbies`, `isAuthenticated`)
+- **Constants**: UPPER_SNAKE_CASE (`API_BASE_URL`, `MAX_RETRY_ATTEMPTS`)
+- **Components**: PascalCase (`HobbyCard`, `UserProfile`)
+- **Types/Interfaces**: PascalCase (`User`, `HobbyState`)
+- **Files**: Match component/function name (e.g., `HobbyCard.tsx` for `HobbyCard` component)
+- **Booleans**: Prefix with `is`, `has`, `should`, `can` (`isLoading`, `hasError`, `shouldRetry`)
+
+---
+
+## Performance Optimization
+
+### Frontend Performance
+- Code splitting: Lazy load routes and heavy components
+- Image optimization: Use appropriate formats (WebP, optimized sizes)
+- Bundle size: Monitor and optimize bundle size (tree shaking, removing unused imports)
+- Memoization: Use React.memo, useMemo, useCallback appropriately
+- Virtual scrolling: For long lists (use react-window or similar)
+- Debouncing: Debounce search inputs and API calls
+- Caching: Cache API responses when appropriate (React Query or similar)
+
+### Backend Performance
+- Database indexing: Index frequently queried fields
+- Query optimization: Use projections, pagination, and efficient queries
+- Caching: Use Redis for frequently accessed data
+- Connection pooling: Configure database connection pools
+- Async operations: Use async/await properly, avoid blocking operations
+- Compression: Enable gzip/brotli compression for responses
+- Rate limiting: Protect against abuse
+
+---
+
+## Accessibility (a11y)
+
+### React/React Native
+- Use semantic HTML elements (web)
+- Provide alt text for images
+- Ensure keyboard navigation works
+- Use ARIA labels when needed (web)
+- Maintain proper color contrast ratios (WCAG AA minimum)
+- Test with screen readers
+- Provide focus indicators
+- Use proper heading hierarchy (h1, h2, h3...)
+
+### Mobile
+- Use accessibility labels: `accessibilityLabel`, `accessibilityHint`
+- Ensure touch targets are at least 44x44 points
+- Support dynamic text sizes
+- Test with VoiceOver (iOS) and TalkBack (Android)
+
+---
+
+## Git & Version Control
+
+### Commit Messages
+Use conventional commits format:
+```
+feat: add hobby search functionality
+fix: resolve authentication token expiration issue
+docs: update API documentation
+refactor: simplify user service logic
+test: add unit tests for hobby controller
+chore: update dependencies
+```
+
+### Branch Naming
+- `feature/hobby-search` - New features
+- `fix/auth-token-refresh` - Bug fixes
+- `refactor/user-service` - Code refactoring
+- `docs/api-endpoints` - Documentation
+- `chore/update-deps` - Maintenance
+
+### Pull Request Guidelines
+- Keep PRs focused and reasonably sized
+- Include description of changes and motivation
+- Reference related issues
+- Ensure all tests pass
+- Request code review before merging
+- Update documentation if needed
+
+---
+
+## Documentation
+
+### Code Documentation
+- Use JSDoc comments for functions and classes:
+```typescript
+/**
+ * Fetches hobbies for the authenticated user
+ * @param userId - The user ID
+ * @param filters - Optional filters (category, difficulty)
+ * @returns Promise resolving to array of hobbies
+ */
+async function getUserHobbies(userId: string, filters?: HobbyFilters): Promise<Hobby[]> {
+  // Implementation
+}
+```
+
+- Document complex algorithms and business logic
+- Explain "why" not "what" (code should be self-explanatory)
+- Keep comments up to date with code changes
+
+### API Documentation
+- Document all API endpoints (use OpenAPI/Swagger if possible)
+- Include request/response examples
+- Document error responses
+- List required permissions/roles
+
+---
+
+## Environment & Configuration
+
+### Environment Variables
+- Use `.env` files for local development (gitignored)
+- Provide `env.example` files with required variables (no values)
+- Document all environment variables in README
+- Use different `.env` files for different environments
+- Never commit actual secrets or API keys
+
+### Configuration Management
+- Centralize configuration in config files
+- Use environment-based configuration
+- Validate configuration on startup
+- Use sensible defaults for development
+
+---
+
+## Shared Code Guidelines
+
+### What Goes in Shared
+- ✅ Type definitions (interfaces, types)
+- ✅ Redux slices and store configuration
+- ✅ Utility functions (platform-agnostic)
+- ✅ Constants
+- ✅ API client configuration
+- ❌ Platform-specific code (React components, React Native components, Node.js modules)
+
+### Platform-Agnostic Rules
+- No `document` or `window` (web-specific)
+- No `require` from React Native modules
+- No Node.js built-ins (use polyfills if needed)
+- Use conditional imports for platform-specific code if necessary
+
+---
+
+## Specific Project Patterns
+
+### API Client Usage
+```typescript
+// ✅ Use shared API client
+import { apiClient } from '@shared/api/client';
+
+const response = await apiClient.get<Hobby[]>('/hobbies');
+```
+
+### State Management
+- Use Redux Toolkit for global state
+- Keep UI-only state in component `useState`
+- Store user data, hobbies, preferences in Redux
+- Use Redux Persist for persistence (if configured)
+
+### Navigation (Mobile)
+- Use React Navigation
+- Define routes in `navigation/` directory
+- Use typed navigation (define param types)
+- Keep navigation logic separate from components
+
+### Styling
+- **Web**: Use TailwindCSS utility classes, extract to components when reused
+- **Mobile**: Use StyleSheet or styled-components (match existing pattern)
+- **Design System**: Follow constants in `constants/designSystem.ts`
+- Use theme context for dark mode support
+
+---
+
+## Code Review Checklist
+
+Before submitting code, ensure:
+- [ ] Code follows TypeScript strict mode
+- [ ] All types are explicitly defined
+- [ ] No `any` types (unless truly necessary)
+- [ ] Error handling implemented
+- [ ] Input validation on backend
+- [ ] Security best practices followed
+- [ ] Tests added/updated
+- [ ] Linter passes (`npm run lint`)
+- [ ] Code is properly formatted
+- [ ] Comments/documentation added where needed
+- [ ] No console.logs or debug code
+- [ ] Environment variables documented
+- [ ] API endpoints documented
+- [ ] Accessibility considered
+- [ ] Performance implications considered
+
+---
+
+## AI Assistant Instructions
+
+When making changes:
+1. **Understand First**: Read existing code to understand patterns before making changes
+2. **Match Style**: Follow existing code style and architecture
+3. **Type Safety**: Always use proper TypeScript types, avoid `any`
+4. **Test Changes**: Consider test implications when modifying code
+5. **Update Related Code**: Update related files, types, and documentation
+6. **Check Dependencies**: Verify imports and dependencies are correct
+7. **Error Handling**: Always implement proper error handling
+8. **Security**: Consider security implications of changes
+9. **Performance**: Consider performance impact
+10. **Documentation**: Update relevant documentation
+
+When in doubt:
+- Prefer consistency with existing code
+- Ask for clarification if requirements are unclear
+- Suggest improvements when appropriate
+- Explain trade-offs for significant architectural decisions
+
+---
+
+## Platform-Specific Notes
+
+### Mobile (React Native/Expo)
+- Use Expo APIs when possible for cross-platform compatibility
+- Test on both iOS and Android
+- Handle platform differences with Platform.select or separate files
+- Use safe area insets for notched devices
+- Consider performance on lower-end devices
+
+### Web (React + Vite)
+- Ensure responsive design (mobile-first approach)
+- Optimize for SEO where applicable
+- Test in multiple browsers
+- Consider SSR/SSG if needed for performance
+- Use web-specific optimizations (code splitting, lazy loading)
+
+### Backend (Express.js)
+- Ensure API is RESTful and well-documented
+- Implement proper logging (Winston)
+- Set up monitoring and health checks
+- Handle CORS properly
+- Consider horizontal scaling
+
+---
+
+## Final Principles
+
+1. **User First**: Code should prioritize user experience and reliability
+2. **Maintainability**: Write code that future developers (including yourself) can understand
+3. **Scalability**: Design for growth (users, features, team size)
+4. **Security**: Security is not optional, build it in from the start
+5. **Performance**: Consider performance implications, but don't over-optimize prematurely
+6. **Testing**: Untested code is broken code (test critical paths at minimum)
+7. **Documentation**: Document complex logic and decisions
+8. **Consistency**: Follow existing patterns unless there's a good reason to change
+9. **Simplicity**: Prefer simple, readable solutions over clever ones
+10. **Continuous Improvement**: Refactor when needed, improve incrementally
+
+---
+
+This constitution should guide all development decisions. When in doubt, prioritize user experience, code quality, and maintainability.
