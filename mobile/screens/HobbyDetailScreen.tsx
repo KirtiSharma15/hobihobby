@@ -18,6 +18,7 @@ import { Typography, Spacing, Layout, BorderRadius } from '../constants/designSy
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useLocalSavedHobbies } from '../hooks/useLocalSavedHobbies';
+import { useCurrency } from '../hooks/useCurrency';
 
 interface HobbyDetailScreenProps {
   hobbyId: string;
@@ -283,6 +284,7 @@ const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
 }) => {
   const { colors } = useTheme();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
+  const { formatPrice, currency, currencyInfo, isLoading: isCurrencyLoading } = useCurrency();
   const [activeTab, setActiveTab] = useState<'overview' | 'checklist' | 'steps'>('overview');
 
   // Get hobby data
@@ -338,7 +340,7 @@ const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
         </View>
       </View>
       <Text style={[styles.checklistItemCost, { color: colors.foreground }]}>
-        {item.cost}
+        {isCurrencyLoading ? '...' : formatPrice(item.cost)}
       </Text>
     </View>
   );
@@ -456,12 +458,19 @@ const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
                   </View>
 
                   <View style={[styles.costSummary, { backgroundColor: colors.muted }]}>
-                    <Text style={[styles.costLabel, { color: colors.mutedForeground }]}>
-                      Estimated cost to start:
-                    </Text>
-                    <Text style={[styles.costValue, { color: colors.foreground }]}>
-                      {hobby.estimatedStarterCost}
-                    </Text>
+                    <View style={styles.costSummaryContent}>
+                      <Text style={[styles.costLabel, { color: colors.mutedForeground }]}>
+                        Estimated cost to start:
+                      </Text>
+                      <Text style={[styles.costValue, { color: colors.foreground }]}>
+                        {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
+                      </Text>
+                    </View>
+                    {currency !== 'USD' && !isCurrencyLoading && (
+                      <Text style={[styles.currencyNote, { color: colors.mutedForeground }]}>
+                        Prices shown in {currencyInfo.name} ({currency})
+                      </Text>
+                    )}
                   </View>
                 </View>
               )}
@@ -475,12 +484,19 @@ const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
                     {hobby.starterChecklist.map(renderChecklistItem)}
                   </View>
                   <View style={[styles.costSummary, { backgroundColor: colors.muted }]}>
-                    <Text style={[styles.costLabel, { color: colors.mutedForeground }]}>
-                      Total estimated cost:
-                    </Text>
-                    <Text style={[styles.costValue, { color: colors.foreground }]}>
-                      {hobby.estimatedStarterCost}
-                    </Text>
+                    <View style={styles.costSummaryContent}>
+                      <Text style={[styles.costLabel, { color: colors.mutedForeground }]}>
+                        Total estimated cost:
+                      </Text>
+                      <Text style={[styles.costValue, { color: colors.foreground }]}>
+                        {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
+                      </Text>
+                    </View>
+                    {currency !== 'USD' && !isCurrencyLoading && (
+                      <Text style={[styles.currencyNote, { color: colors.mutedForeground }]}>
+                        Prices shown in {currencyInfo.name} ({currency})
+                      </Text>
+                    )}
                   </View>
                 </View>
               )}
@@ -678,12 +694,14 @@ const styles = StyleSheet.create({
     lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.base,
   },
   costSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     marginTop: Spacing.md,
+  },
+  costSummaryContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   costLabel: {
     fontSize: Typography.fontSize.base,
@@ -691,6 +709,11 @@ const styles = StyleSheet.create({
   costValue: {
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold as any,
+  },
+  currencyNote: {
+    fontSize: Typography.fontSize.xs,
+    marginTop: Spacing.xs,
+    textAlign: 'right',
   },
   checklistContent: {},
   checklistIntro: {

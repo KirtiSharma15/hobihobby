@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
+import { useCurrency } from '@/hooks/useCurrency';
 import { cn } from '@/utils/cn';
 import { trackHobbyView, trackHobbySave, trackTimeOnPage } from '@/utils/analytics';
 
@@ -269,6 +270,7 @@ export const HobbyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
+  const { formatPrice, currency, currencyInfo, isLoading: isCurrencyLoading } = useCurrency();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const startTimeRef = useRef<number>(Date.now());
 
@@ -405,9 +407,18 @@ export const HobbyDetailPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="bg-amber-50 rounded-xl p-5 flex items-center justify-between">
-                <span className="text-gray-700">Estimated cost to start:</span>
-                <span className="text-xl font-semibold text-gray-900">{hobby.estimatedStarterCost}</span>
+              <div className="bg-amber-50 rounded-xl p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Estimated cost to start:</span>
+                  <span className="text-xl font-semibold text-gray-900">
+                    {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
+                  </span>
+                </div>
+                {currency !== 'USD' && !isCurrencyLoading && (
+                  <p className="text-xs text-gray-500 mt-2 text-right">
+                    Prices shown in {currencyInfo.name} ({currency})
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -431,14 +442,25 @@ export const HobbyDetailPage: React.FC = () => {
                         <p className="text-sm text-gray-500">{item.required ? 'Required' : 'Optional'}</p>
                       </div>
                     </div>
-                    <span className="font-medium text-gray-700">{item.cost}</span>
+                    <span className="font-medium text-gray-700">
+                      {isCurrencyLoading ? '...' : formatPrice(item.cost)}
+                    </span>
                   </div>
                 ))}
-        </div>
+              </div>
 
-              <div className="bg-amber-50 rounded-xl p-5 flex items-center justify-between">
-                <span className="text-gray-700">Total estimated cost:</span>
-                <span className="text-xl font-semibold text-gray-900">{hobby.estimatedStarterCost}</span>
+              <div className="bg-amber-50 rounded-xl p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700">Total estimated cost:</span>
+                  <span className="text-xl font-semibold text-gray-900">
+                    {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
+                  </span>
+                </div>
+                {currency !== 'USD' && !isCurrencyLoading && (
+                  <p className="text-xs text-gray-500 mt-2 text-right">
+                    Prices shown in {currencyInfo.name} ({currency})
+                  </p>
+                )}
               </div>
             </div>
           )}
