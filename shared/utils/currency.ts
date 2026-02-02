@@ -3,11 +3,15 @@
  * 
  * Provides currency conversion and formatting based on user location.
  * Base prices are stored in USD and converted to the viewer's local currency.
+ * 
+ * Features:
+ * - Live exchange rates fetched from free API
+ * - Caching to minimize API calls (rates cached for 1 hour)
+ * - Fallback to static rates if API fails
  */
 
-// Supported currencies with their exchange rates relative to USD
-// These rates should ideally be fetched from an API in production
-export const EXCHANGE_RATES: Record<CurrencyCode, number> = {
+// Fallback static exchange rates (used when API is unavailable)
+const FALLBACK_EXCHANGE_RATES: Record<CurrencyCode, number> = {
   USD: 1.0,
   EUR: 0.92,
   GBP: 0.79,
@@ -39,6 +43,19 @@ export const EXCHANGE_RATES: Record<CurrencyCode, number> = {
   ILS: 3.70,
   CZK: 22.85,
 };
+
+// Cache for live exchange rates
+interface ExchangeRateCache {
+  rates: Record<string, number>;
+  timestamp: number;
+  source: 'live' | 'fallback';
+}
+
+const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour cache
+let exchangeRateCache: ExchangeRateCache | null = null;
+
+// Current rates (updated by fetchLiveRates or fallback)
+export let EXCHANGE_RATES: Record<CurrencyCode, number> = { ...FALLBACK_EXCHANGE_RATES };
 
 export type CurrencyCode = 
   | 'USD' | 'EUR' | 'GBP' | 'JPY' | 'CAD' | 'AUD' | 'INR' | 'CNY' 
@@ -279,5 +296,178 @@ export function getSupportedCurrencies(): CurrencyCode[] {
  */
 export function isSupportedCurrency(code: string): code is CurrencyCode {
   return code in CURRENCIES;
+}
+
+// ============================================
+// Live Exchange Rate Functions
+// ============================================
+
+/**
+ * Check if the cached rates are still valid
+ */
+function isCacheValid(): boolean {
+  if (!exchangeRateCache) return false;
+  return Date.now() - exchangeRateCache.timestamp < CACHE_DURATION_MS;
+}
+
+/**
+ * Get the current exchange rate source
+ */
+export function getExchangeRateSource(): 'live' | 'fallback' | 'cached' {
+  if (!exchangeRateCache) return 'fallback';
+  if (isCacheValid()) {
+    return exchangeRateCache.source === 'live' ? 'cached' : 'fallback';
+  }
+  return 'fallback';
+}
+
+/**
+ * Get the timestamp of the last rate update
+ */
+export function getLastRateUpdate(): Date | null {
+  if (!exchangeRateCache) return null;
+  return new Date(exchangeRateCache.timestamp);
+}
+
+/**
+ * Fetch live exchange rates from free APIs
+ * Tries multiple free APIs as fallbacks
+ */
+export async function fetchLiveExchangeRates(): Promise<{
+  success: boolean;
+  source: string;
+  rates?: Record<string, number>;
+  error?: string;
+}> {
+  // Return cached rates if still valid
+  if (isCacheValid() && exchangeRateCache) {
+    return {
+      success: true,
+      source: 'cache',
+      rates: exchangeRateCache.rates,
+    };
+  }
+
+  // List of free exchange rate APIs to try (no API key required)
+  const apis = [
+    {
+      name: 'exchangerate-api (open)',
+      url: 'https://open.er-api.com/v6/latest/USD',
+      parseRates: (data: { rates?: Record<string, number> }) => data.rates,
+    },
+    {
+      name: 'frankfurter.app',
+      url: 'https://api.frankfurter.app/latest?from=USD',
+      parseRates: (data: { rates?: Record<string, number> }) => {
+        // Frankfurter returns rates relative to USD, need to add USD: 1
+        return data.rates ? { USD: 1, ...data.rates } : undefined;
+      },
+    },
+    {
+      name: 'fawazahmed0/exchange-api',
+      url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',
+      parseRates: (data: { usd?: Record<string, number> }) => {
+        // This API returns lowercase currency codes, need to uppercase them
+        if (!data.usd) return undefined;
+        const rates: Record<string, number> = {};
+        for (const [code, rate] of Object.entries(data.usd)) {
+          rates[code.toUpperCase()] = rate;
+        }
+        return rates;
+      },
+    },
+  ];
+
+  for (const api of apis) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+      const response = await fetch(api.url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const rates = api.parseRates(data);
+
+      if (rates && Object.keys(rates).length > 0) {
+        // Update the global exchange rates with live data
+        const updatedRates = { ...FALLBACK_EXCHANGE_RATES };
+        const ratesRecord = rates as Record<string, number>;
+        
+        for (const code of Object.keys(FALLBACK_EXCHANGE_RATES) as CurrencyCode[]) {
+          if (ratesRecord[code] !== undefined) {
+            updatedRates[code] = ratesRecord[code];
+          }
+        }
+
+        // Update cache
+        exchangeRateCache = {
+          rates: updatedRates,
+          timestamp: Date.now(),
+          source: 'live',
+        };
+
+        // Update global rates
+        EXCHANGE_RATES = updatedRates;
+
+        return {
+          success: true,
+          source: api.name,
+          rates: updatedRates,
+        };
+      }
+    } catch {
+      // Try next API
+      continue;
+    }
+  }
+
+  // All APIs failed, use fallback
+  exchangeRateCache = {
+    rates: FALLBACK_EXCHANGE_RATES,
+    timestamp: Date.now(),
+    source: 'fallback',
+  };
+
+  return {
+    success: false,
+    source: 'fallback',
+    rates: FALLBACK_EXCHANGE_RATES,
+    error: 'All exchange rate APIs failed, using fallback rates',
+  };
+}
+
+/**
+ * Initialize exchange rates (call on app startup)
+ * This fetches live rates and updates the cache
+ */
+export async function initializeExchangeRates(): Promise<void> {
+  await fetchLiveExchangeRates();
+}
+
+/**
+ * Force refresh exchange rates (bypasses cache)
+ */
+export async function refreshExchangeRates(): Promise<{
+  success: boolean;
+  source: string;
+  error?: string;
+}> {
+  // Clear cache to force refresh
+  exchangeRateCache = null;
+  const result = await fetchLiveExchangeRates();
+  return {
+    success: result.success,
+    source: result.source,
+    error: result.error,
+  };
 }
 

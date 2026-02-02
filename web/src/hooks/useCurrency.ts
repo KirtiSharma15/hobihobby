@@ -14,6 +14,9 @@ import {
   localizePrice,
   getSupportedCurrencies,
   isSupportedCurrency,
+  fetchLiveExchangeRates,
+  getExchangeRateSource,
+  refreshExchangeRates,
 } from '@shared/utils/currency';
 
 const CURRENCY_STORAGE_KEY = 'hobi_user_currency';
@@ -34,6 +37,10 @@ interface UseCurrencyResult {
   setCurrency: (currency: CurrencyCode) => void;
   /** List of all supported currencies */
   supportedCurrencies: CurrencyCode[];
+  /** Source of exchange rates ('live', 'cached', or 'fallback') */
+  rateSource: 'live' | 'cached' | 'fallback';
+  /** Force refresh exchange rates */
+  refreshRates: () => Promise<void>;
 }
 
 interface GeoLocationResponse {
@@ -109,11 +116,17 @@ export function useCurrency(): UseCurrencyResult {
   const [currency, setCurrencyState] = useState<CurrencyCode>('USD');
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [rateSource, setRateSource] = useState<'live' | 'cached' | 'fallback'>('fallback');
 
-  // Load saved currency on mount
+  // Load saved currency and fetch live rates on mount
   useEffect(() => {
     const initializeCurrency = async () => {
       setIsLoading(true);
+
+      // Fetch live exchange rates (runs in parallel with country detection)
+      const ratesPromise = fetchLiveExchangeRates().then(() => {
+        setRateSource(getExchangeRateSource());
+      });
 
       // Check for saved currency preference
       const savedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY);
@@ -122,6 +135,7 @@ export function useCurrency(): UseCurrencyResult {
       if (savedCurrency && isSupportedCurrency(savedCurrency)) {
         setCurrencyState(savedCurrency);
         setCountryCode(savedCountry);
+        await ratesPromise; // Wait for rates before showing prices
         setIsLoading(false);
         return;
       }
@@ -142,6 +156,7 @@ export function useCurrency(): UseCurrencyResult {
         // Keep default USD
       }
 
+      await ratesPromise; // Wait for rates before showing prices
       setIsLoading(false);
     };
 
@@ -162,6 +177,12 @@ export function useCurrency(): UseCurrencyResult {
     [currency]
   );
 
+  // Force refresh exchange rates
+  const refreshRates = useCallback(async () => {
+    await refreshExchangeRates();
+    setRateSource(getExchangeRateSource());
+  }, []);
+
   return {
     currency,
     currencyInfo: CURRENCIES[currency],
@@ -170,6 +191,8 @@ export function useCurrency(): UseCurrencyResult {
     formatPrice,
     setCurrency,
     supportedCurrencies: getSupportedCurrencies(),
+    rateSource,
+    refreshRates,
   };
 }
 
