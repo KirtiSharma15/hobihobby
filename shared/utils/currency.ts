@@ -92,7 +92,7 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyInfo> = {
   DKK: { code: 'DKK', symbol: 'kr', name: 'Danish Krone', locale: 'da-DK' },
   PLN: { code: 'PLN', symbol: 'zł', name: 'Polish Złoty', locale: 'pl-PL' },
   ZAR: { code: 'ZAR', symbol: 'R', name: 'South African Rand', locale: 'en-ZA' },
-  AED: { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', locale: 'ar-AE' },
+  AED: { code: 'AED', symbol: 'AED', name: 'UAE Dirham', locale: 'en-AE' },
   THB: { code: 'THB', symbol: '฿', name: 'Thai Baht', locale: 'th-TH' },
   PHP: { code: 'PHP', symbol: '₱', name: 'Philippine Peso', locale: 'en-PH' },
   MYR: { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit', locale: 'ms-MY' },
