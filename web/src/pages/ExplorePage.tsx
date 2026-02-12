@@ -13,6 +13,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
+import { useCurrency } from '@/hooks/useCurrency';
 import { cn } from '@/utils/cn';
 import { trackPageView, trackFilterUse, trackHobbySave } from '@/utils/analytics';
 
@@ -87,6 +88,7 @@ const FILTERS: { id: FilterType; label: string; icon: string }[] = [
 export const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
+  const { formatPrice, isLoading: isCurrencyLoading } = useCurrency();
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
 
   // Track page view on mount
@@ -135,7 +137,8 @@ export const ExplorePage: React.FC = () => {
 
   const HobbyCard = ({ hobby }: { hobby: typeof ART_CRAFT_HOBBIES[0] }) => {
     const isSaved = savedHobbies.has(hobby.id);
-    
+    const displayCost = isCurrencyLoading ? '...' : formatPrice(hobby.cost);
+
     return (
       <div 
         className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
@@ -168,7 +171,7 @@ export const ExplorePage: React.FC = () => {
           <div className="flex items-center justify-between text-sm text-gray-500">
             <span>⭐ {hobby.rating}</span>
             <span>⏱️ {hobby.timeRequired}</span>
-            <span>💰 {hobby.cost}</span>
+            <span>💰 {displayCost}</span>
           </div>
         </div>
       </div>

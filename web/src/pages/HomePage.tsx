@@ -13,6 +13,7 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
+import { useCurrency } from '@/hooks/useCurrency';
 import { trackPageView, trackHobbySave } from '@/utils/analytics';
 
 // Art & Craft hobbies data (matches backend)
@@ -72,6 +73,7 @@ const ART_CRAFT_HOBBIES = [
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby, getSavedCount } = useLocalSavedHobbies();
+  const { formatPrice, isLoading: isCurrencyLoading } = useCurrency();
   
   const savedHobbyList = ART_CRAFT_HOBBIES.filter(h => savedHobbies.has(h.id));
   const savedCount = getSavedCount();
@@ -90,7 +92,8 @@ export const HomePage: React.FC = () => {
 
   const HobbyCard = ({ hobby }: { hobby: typeof ART_CRAFT_HOBBIES[0] }) => {
     const isSaved = savedHobbies.has(hobby.id);
-    
+    const displayCost = isCurrencyLoading ? '...' : formatPrice(hobby.cost);
+
     return (
       <div 
         className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
@@ -123,7 +126,7 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center justify-between text-sm text-gray-500">
             <span>⭐ {hobby.rating}</span>
             <span>⏱️ {hobby.timeRequired}</span>
-            <span>💰 {hobby.cost}</span>
+            <span>💰 {displayCost}</span>
           </div>
         </div>
       </div>
