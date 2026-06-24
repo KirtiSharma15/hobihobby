@@ -1,0 +1,81 @@
+---
+description: TypeScript and React coding standards derived from the actual codebase patterns
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript & React Standards
+
+## Component Definition
+Arrow function + `React.FC` with named exports:
+```tsx
+// ✅ Standard pattern
+export const HobbyCard: React.FC<HobbyCardProps> = ({ hobby, onSave }) => {
+  // 1. Hooks → 2. State → 3. Effects → 4. Handlers → 5. Return JSX
+};
+
+// ❌ Avoid default exports (exception: pages that already use them like QuizPage)
+// ❌ Avoid function declarations for components
+```
+
+## Props Typing
+- Reusable components: separate `interface {Name}Props` above the component
+- Small nested/inline components: inline object type on parameter
+- Naming: `{ComponentName}Props`
+- Extend native attrs when wrapping HTML: `interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>`
+
+```tsx
+// ✅ Reusable
+interface HobbyCardProps {
+  hobby: Hobby;
+  onPress?: () => void;
+}
+
+// ✅ Small inline sub-component
+const HeartIcon: React.FC<{ filled: boolean; className?: string }> = ({ filled }) => { ... };
+```
+
+## Hook Patterns
+- Always return **objects**, never tuples
+- Wrap action handlers in `useCallback`
+- Derived state via `useMemo`
+- Side effects in `useEffect` with proper deps
+- Export return type interface when hook is reusable: `UseAuthReturn`, `UseSaveHobbyReturn`
+- Use `useAppDispatch` / `useAppSelector` for Redux (from `hooks/useAppDispatch.ts`)
+
+```tsx
+// ✅ Hook pattern
+export const useSaveHobby = (hobbyId: string): UseSaveHobbyReturn => {
+  const dispatch = useAppDispatch();
+  const isSaved = useMemo(() => ..., [hobbyId]);
+  const toggleSave = useCallback(async () => { ... }, [hobbyId]);
+  return { isSaved, toggleSave, isLoading };
+};
+```
+
+## Exports
+- **Named exports** for components, hooks, utils: `export const`, `export function`
+- Redux slices: dual export — named `{name}Reducer` AND `export default`
+- Types/interfaces: `export interface`, or `export type` for unions
+
+## Import Order
+1. React / React hooks
+2. Third-party (`react-router-dom`, `firebase/*`, `@reduxjs/toolkit`)
+3. Internal (`@/components/...`, `@/hooks/...`, `@/utils/...`)
+4. Relative (`../`, `./`)
+5. Type-only imports (`import type { ... }`)
+
+Prefer `@/` path alias over relative paths for cross-directory imports.
+
+## TypeScript
+- `strict: true` is enabled
+- No `any` — use `unknown` + type narrowing
+- Prefer `interface` for object shapes, `type` for unions/intersections
+- Use `PayloadAction<T>` for Redux action typing
+- Boolean props/state: prefix with `is`, `has`, `should`, `can`
+
+## Error Handling
+- Hooks: `try/catch` → `dispatch(setError('...'))` for user-visible errors
+- Console errors for debug-only info: `console.error('Context:', error)`
+- Never throw errors to UI — route through Redux `error` state or `showToast()`
+- `try/finally` for cleanup (reset loading state)

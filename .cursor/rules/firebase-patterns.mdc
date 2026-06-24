@@ -1,0 +1,43 @@
+---
+description: Firebase Auth, Firestore, and Hosting patterns
+globs: "{firestore.rules,firestore.indexes.json,firebase.json,.firebaserc,web/src/services/firebase.ts}"
+alwaysApply: false
+---
+
+# Firebase Patterns
+
+## Auth Flow
+- Google Sign-In via **redirect** (not popup — popup triggers COOP errors in Chrome)
+- Use `signInWithRedirect` + `getRedirectResult`, never `signInWithPopup`
+- Auth state managed by `onAuthStateChanged` listener in `useAuth` hook
+- User profile auto-synced to Firestore via `syncUser` Cloud Function on first login
+
+## Firestore Security Rules
+- Users can only read/write their own document: `request.auth.uid == resource.data.uid`
+- Hobby collection is read-only for non-admins
+- Test rules with the Firebase Emulator before deploying
+
+### Common Rules Bug
+If you get `mismatched input '{'` in Firestore rules, it's usually a stray character at the top. Select all, delete, and repaste clean.
+
+## Firestore Data Model
+```
+users/{uid}
+  ├── savedHobbies/{hobbyId}    (subcollection)
+  └── fields: uid, email, displayName, photoURL, preferences, onboardingCompleted
+
+hobbies/{hobbyId}
+  └── fields: title, description, category, difficulty, tags[], imageUrl, rating, reviewCount
+
+categories/{categoryId}
+ratings/{uid_hobbyId}
+reviews/{reviewId}
+```
+
+## Frontend Firebase Init
+`web/src/services/firebase.ts` conditionally initializes Firebase only when `VITE_FIREBASE_*` env vars are present. Check `isFirebaseConfigured` before any Firebase SDK call.
+
+## Hosting
+- Deploy: `firebase deploy --only hosting`
+- Custom domain: `hobihobby.com` via Firebase Hosting
+- DNS: A record `199.36.158.100` + TXT verification

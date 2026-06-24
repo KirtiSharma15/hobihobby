@@ -1,0 +1,74 @@
+---
+description: TailwindCSS styling conventions and design tokens
+globs: "web/**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# TailwindCSS Styling
+
+## Design Tokens
+Custom theme tokens defined in `web/tailwind.config.js`:
+- **`primary-*`** — sky blue scale (50–950), main brand color
+- **`accent-*`** — fuchsia scale (50–950), accent/highlight color
+- **Font:** `font-sans` = Outfit, `font-display` = Clash Display
+
+Use these tokens for consistency. Avoid raw color values when a token exists.
+
+## `cn()` Utility
+Located in `web/src/utils/cn.ts` — standard `clsx` + `tailwind-merge` pattern.
+
+```tsx
+import { cn } from '@/utils/cn';
+
+// ✅ Use cn() for conditional/variant classes
+<button className={cn(
+  'px-4 py-2 rounded-lg font-medium',
+  isActive ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600',
+  className
+)} />
+
+// ❌ Avoid template literal ternaries for complex conditionals
+<button className={`px-4 ${isActive ? 'bg-primary-600' : 'bg-gray-100'}`} />
+```
+
+## UI Primitive Pattern (`components/ui/`)
+Variant/size lookup objects merged with `cn()`:
+
+```tsx
+const variants = {
+  primary: 'bg-primary-600 text-white hover:bg-primary-700',
+  secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+  ghost: 'hover:bg-gray-100 text-gray-600',
+};
+
+const sizes = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-base',
+  lg: 'px-6 py-3 text-lg',
+};
+
+export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', className, ...props }) => (
+  <button className={cn(variants[variant], sizes[size], className)} {...props} />
+);
+```
+
+## Page Layout
+Standard page wrapper pattern:
+```tsx
+<div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
+  <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    {/* content */}
+  </div>
+</div>
+```
+
+## Accessibility
+UI primitives (`Button`, `Card`, shared `HobbyCard`) include:
+- `aria-label`, `aria-hidden` on decorative icons
+- `focus-visible:ring-*` focus indicators
+- Maintain this in new components
+
+## Do NOT
+- Create new `.btn-*` or `.card` classes in `index.css` — use component-level Tailwind utilities
+- Use colors outside the theme without good reason
+- Skip `cn()` for conditional classes in reusable components

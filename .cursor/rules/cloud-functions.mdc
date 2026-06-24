@@ -1,0 +1,74 @@
+---
+description: Firebase Cloud Functions v2 + Gemini AI conventions
+globs: functions/**/*.{js,json}
+alwaysApply: false
+---
+
+# Cloud Functions Conventions
+
+## SDK Version
+Always use **v2 SDK**. Never use the deprecated v1 API.
+
+```js
+// ✅ Correct
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { setGlobalOptions } = require('firebase-functions/v2');
+
+// ❌ Wrong — v1 deprecated API
+const functions = require('firebase-functions');
+functions.runWith({ ... }).https.onCall(...)
+```
+
+## Secrets
+API keys are stored as Firebase secrets, passed via the `secrets` option:
+```js
+exports.hobbyQuiz = onCall(
+  { secrets: ['GEMINI_API_KEY'] },
+  async (request) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    // ...
+  }
+);
+```
+
+Never hardcode keys. Never read from `.env` in Cloud Functions.
+
+## Gemini API Pattern
+Use the REST API directly via axios:
+```js
+const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+const body = {
+  contents,
+  generationConfig: { temperature, maxOutputTokens },
+  systemInstruction: systemText ? { parts: [{ text: systemText }] } : undefined,
+};
+```
+
+### Model Selection
+| Feature | Model | Reason |
+|---|---|---|
+| Quiz recommendations | `gemini-2.0-flash` | Reliable structured JSON |
+| Coach chat | `gemini-2.0-flash` | Fast conversational reasoning |
+| Tutorial summarization | `gemini-2.0-flash-lite` | Lighter task, lower cost |
+
+## Gemini Message Format
+- Gemini requires alternating `user`/`model` turns
+- Map `assistant` → `model` role
+- Merge consecutive same-role messages
+- Conversation must start with a `user` message
+- Use `buildGeminiContents()` helper in `functions/index.js`
+
+## Auth
+All callable functions should verify `request.auth`:
+```js
+if (!request.auth) {
+  throw new HttpsError('unauthenticated', 'Must be logged in');
+}
+```
+
+## JSON Output from AI
+When expecting structured JSON from Gemini:
+1. Prompt with "Return ONLY valid JSON with no markdown"
+2. Clean response: `raw.replace(/```json|```/g, '').trim()`
+3. Parse with `JSON.parse(cleaned)`
+4. Validate shape before returning
