@@ -1,0 +1,50 @@
+---
+description: Express.js backend conventions (local dev mock server)
+globs: backend/**/*.{js,json}
+alwaysApply: false
+---
+
+# Backend API Conventions
+
+## Role
+The Express backend in `backend/` is a **local development mock server**. In production, all logic lives in Firebase Cloud Functions. This server exists so the app can run without Firebase credentials.
+
+## Key Pattern: Firebase Fallback
+Every controller must check `isFirebaseConfigured()` before using Firestore. When Firebase is not configured, return mock/static data.
+
+```js
+const { getFirestore, isFirebaseConfigured } = require('../config/firebase');
+
+const getItems = async (req, res) => {
+  if (!isFirebaseConfigured()) {
+    return res.json({ success: true, data: MOCK_DATA });
+  }
+  const db = getFirestore();
+  // ... real Firestore query
+};
+```
+
+## Response Format
+Always return consistent JSON:
+```js
+{ success: true, data: ..., pagination?: { page, limit, total, pages } }
+{ success: false, error: "message" }
+```
+
+## Auth Middleware
+`middleware/authenticate.js` uses `getAuth()` and `isFirebaseConfigured()`. In mock mode, it sets `req.user = { uid: 'mock-user', email: 'mock@hobihobby.local' }`.
+
+## Error Handling
+- Wrap async handlers with `express-async-handler`
+- Centralized error handler in `middleware/errorHandler.js`
+- Use `AppError` class for operational errors with status codes
+
+## Data Sources (Mock Mode)
+- Hobbies: `data/artCraftHobbies.js` (Phase 1 Art & Craft vertical)
+- Learning paths: `data/learningPaths.js`
+- User profile: inline mock in `authController.js`
+
+## Do NOT
+- Add MongoDB/Mongoose models — Firestore is the only database
+- Put business logic here that should be in Cloud Functions
+- Commit real credentials in `backend/.env`

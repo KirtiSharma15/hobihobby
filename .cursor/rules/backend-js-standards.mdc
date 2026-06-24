@@ -1,0 +1,101 @@
+---
+description: JavaScript/Node.js backend coding standards for Express and Cloud Functions
+globs: "{backend,functions}/**/*.js"
+alwaysApply: false
+---
+
+# Backend JS Standards
+
+## Module System
+CommonJS everywhere. No ES modules in backend or functions.
+```js
+// ✅
+const { AppError } = require('../middleware/errorHandler');
+module.exports = { getAllHobbies, getHobbyById };
+
+// ❌
+import { AppError } from '../middleware/errorHandler';
+export default router;
+```
+
+## Controller Pattern
+Two valid styles in this codebase — pick one per controller, don't mix within a file:
+
+### Style A: Try/catch (hobbiesController)
+```js
+const getItems = async (req, res) => {
+  try {
+    // ... logic
+    res.json({ success: true, data: items });
+  } catch (error) {
+    logger.error('Get items error:', error);
+    throw new AppError('Failed to fetch items', 500);
+  }
+};
+```
+
+### Style B: asyncHandler wrapper (authController)
+```js
+const asyncHandler = require('express-async-handler');
+
+const getProfile = asyncHandler(async (req, res) => {
+  // ... logic — errors auto-forwarded to error handler
+  return res.status(200).json({ success: true, data: profile });
+});
+```
+
+## Response Format
+Always consistent JSON:
+```js
+// Success
+{ success: true, data: ..., pagination?: { page, limit, total, pages } }
+
+// Error
+{ success: false, error: 'Human-readable message' }
+```
+
+Status codes: `200` success, `201` created, `400` bad input, `401` no auth, `403` forbidden, `404` not found, `500` server error.
+
+## Error Handling
+- `AppError` class for operational errors: `throw new AppError('Not found', 404)`
+- Central `errorHandler` middleware catches all — maps Mongoose/JWT/Firebase errors to `AppError`
+- Log with Winston `logger.error(...)` before throwing
+- Never return raw stack traces in production
+
+## Route Definition
+```js
+const router = express.Router();
+const { authenticate } = require('../middleware/authenticate');
+const asyncHandler = require('express-async-handler');
+const controller = require('../controllers/hobbiesController');
+
+router.get('/', authenticate, asyncHandler(controller.getAllHobbies));
+router.get('/:id', authenticate, asyncHandler(controller.getHobbyById));
+```
+
+Place specific routes (`/saved`, `/filters`) before parameterized routes (`/:id`).
+
+## Logging
+Winston logger from `utils/logger.js`:
+```js
+const { logger } = require('../utils/logger');
+logger.info('Server started on port 3001');
+logger.error('Database query failed:', error);
+logger.warn('Firebase not configured');
+```
+
+## Cloud Functions (v2)
+```js
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+
+exports.myFunction = onCall(
+  { secrets: ['GEMINI_API_KEY'] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be logged in');
+    // Return raw objects — no { success: true } wrapper
+    return { result: data };
+  }
+);
+```
+
+Cloud Functions return raw objects, not the `{ success, data }` wrapper used by Express.

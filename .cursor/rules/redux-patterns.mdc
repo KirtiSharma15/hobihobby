@@ -1,0 +1,91 @@
+---
+description: Redux Toolkit slice and state management patterns
+globs: "web/src/store/**/*.ts"
+alwaysApply: false
+---
+
+# Redux Toolkit Patterns
+
+## Slice Structure
+```ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+
+export interface ItemState {
+  items: Item[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+const initialState: ItemState = {
+  items: [],
+  isLoading: false,
+  error: null,
+};
+
+const itemSlice = createSlice({
+  name: 'items',
+  initialState,
+  reducers: {
+    setItems: (state, action: PayloadAction<Item[]>) => {
+      state.items = action.payload;
+    },
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string | null>) => {
+      state.error = action.payload;
+      state.isLoading = false;
+    },
+    clearItems: () => initialState,
+  },
+});
+
+export const { setItems, setLoading, setError, clearItems } = itemSlice.actions;
+export const itemReducer = itemSlice.reducer;
+export default itemReducer;
+```
+
+## Conventions
+- State interface exported and named `{Name}State`
+- Domain types (e.g. `Message`, `HobbyRecommendation`) exported from slice file
+- Sync reducers only in slice files — use `PayloadAction<T>` for all
+- Full reset: `clearX: () => initialState` (return fresh object)
+- Guard mutations: check `includes` before `push` to avoid duplicates
+- Dual export: named `{name}Reducer` AND `export default`
+
+## Async Thunks
+Defined in `store/index.ts`, not in individual slice files:
+```ts
+export const fetchHobbies = createAsyncThunk(
+  'hobbies/fetchHobbies',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axios.get('/api/hobbies');
+      return response.data.data || response.data;
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch hobbies');
+    }
+  }
+);
+```
+
+Handle in slice via `extraReducers` builder:
+- `.pending` → set loading, clear error
+- `.fulfilled` → set data, clear loading
+- `.rejected` → set error, clear loading
+
+## Typed Hooks
+Use typed hooks from `hooks/useAppDispatch.ts` (re-exported from `store/index.ts`):
+```ts
+const dispatch = useAppDispatch();
+const hobbies = useAppSelector((state: RootState) => state.hobbies.hobbies);
+```
+
+## Store Keys
+Current store shape:
+- `user` — auth state, profile
+- `hobbies` — discovery, filters, localStorage saves
+- `savedHobbies` — auth-based saved hobby IDs
+- `ui` — theme, sidebar
+- `ai` — chat history, quiz answers, recommendations

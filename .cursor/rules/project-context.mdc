@@ -1,0 +1,89 @@
+---
+description: HobiHobby project context, active sprint, and architecture decisions
+alwaysApply: true
+---
+
+# HobiHobby — Project Context
+
+## Product Stage
+Solo founder, early MVP. Live on Firebase Hosting at hobihobby.com.
+Quality over speed. No hard launch deadline.
+
+## Active Sprint: Sprint 2 — AI Hook
+
+### Sprint 2 Scope
+- AI Hobby Discovery Quiz — 7 questions → Gemini → ranked recommendations
+- AI Hobby Coach — WhatsApp-style chat via `hobbyCoach` Cloud Function
+- Tutorial summarization — `summarizeTutorial` Cloud Function (backend only, no UI)
+
+### Sprint 2 Rules
+- Do NOT build community features, maps, payments, or streaks yet
+- All AI calls go through Firebase Cloud Functions — never expose API keys in frontend
+- Cloud Functions use the **v2 SDK** (`firebase-functions/v2/https`)
+- AI model: `gemini-2.0-flash` for quiz + coach, `gemini-2.0-flash-lite` for summarization
+
+## Architecture Decisions (Locked)
+- **Firebase-native only.** No Express backend in production, no MongoDB, no Mongoose. Firestore is the single source of truth.
+- **No micro-frontends.** Legacy `root-config/` and `micro-frontends/` scaffolding exists — ignore it. All active dev is in `web/`.
+- **All AI calls through Cloud Functions.** Gemini API key lives only in Firebase Functions secrets.
+- **Cloud Functions v2 SDK only.** Import from `firebase-functions/v2/https`, not the legacy v1 API.
+- **Firebase Hosting only.** Vercel is decommissioned.
+
+## Tech Stack
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 + Vite + TypeScript + TailwindCSS |
+| State | Redux Toolkit |
+| Backend | Firebase Cloud Functions (v2), Node.js |
+| Database | Firestore |
+| Auth | Firebase Auth (Google provider, redirect flow) |
+| Hosting | Firebase Hosting |
+| AI | Google Gemini API (`gemini-2.0-flash`) |
+
+## Key Directories
+- `web/` — React + Vite web app (the active frontend)
+- `functions/` — Firebase Cloud Functions (AI, auth sync)
+- `backend/` — Legacy Express server (local dev mock only)
+- `shared/` — Cross-platform types and utils
+- `mobile/` — React Native/Expo (Sprint 7, not active)
+
+## Codebase Map
+| Directory | Purpose | Active? |
+|---|---|---|
+| `web/` | React + Vite + TailwindCSS web app | Yes — primary frontend |
+| `functions/` | Firebase Cloud Functions (AI, auth sync) | Yes — production backend |
+| `backend/` | Express.js mock server for local dev | Yes — local dev only |
+| `shared/` | Cross-platform types, utils, Redux slices | Yes |
+| `mobile/` | React Native/Expo app | No — Sprint 7 |
+| `root-config/`, `micro-frontends/` | Legacy scaffolding | No — ignore |
+
+## Coding Standards
+- **TypeScript**: Strict mode, no `any`. Prefer `interface` for objects, `type` for unions.
+- **React**: Functional components, typed props, custom hooks for reusable logic.
+- **State**: Redux Toolkit for global, `useState` for local UI.
+- **Styling**: TailwindCSS with `cn()` helper for conditional classes.
+- **Cloud Functions**: v2 SDK, secrets via options, always check `request.auth`.
+- **Git**: Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`).
+
+## Common Gotchas
+1. `signInWithPopup` breaks → use `signInWithRedirect` + `getRedirectResult`
+2. `functions.runWith` not a function → that's v1; use v2 `onCall`
+3. White screen locally → missing `VITE_FIREBASE_*` env vars; `isFirebaseConfigured` flag handles this
+4. Backend crash on startup → placeholder Firebase private key; `initializeFirebase()` detects and skips it
+5. Firestore rules `mismatched input '{'` → stray character at top; select all and repaste
+
+## Decision Log
+| Decision | Reasoning |
+|---|---|
+| Firebase-only backend | Solo founder; minimize ops overhead |
+| Gemini 2.0 Flash over Gemma 4 | Better structured JSON reliability; cost difference negligible at MVP |
+| No micro-frontends | Zero benefit for solo founder |
+| Cloud Functions v2 | v1 deprecated and broke deployment |
+| Art & Craft vertical first | Low barrier, tangible outputs, calming — matches target user |
+
+## Do NOT
+- Suggest features outside Sprint 2 scope
+- Add MongoDB/Mongoose models
+- Use `functions.runWith` (v1 API — deprecated)
+- Put API keys in frontend code or `.env` files committed to git
+- Add micro-frontend complexity

@@ -1,0 +1,57 @@
+---
+description: React + Vite + TailwindCSS frontend conventions for the web app
+globs: web/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# Web Frontend Conventions
+
+## Stack
+React 18, Vite, TypeScript (strict), TailwindCSS, Redux Toolkit, React Router DOM.
+
+## File Structure
+```
+web/src/
+  pages/          — Route-level components (one per page)
+  components/     — Reusable UI components
+  components/ui/  — Primitives (Button, Card, Input, etc.)
+  hooks/          — Custom React hooks
+  store/          — Redux store, slices
+  services/       — Firebase init, API client
+  utils/          — Pure helper functions
+```
+
+## Component Pattern
+```tsx
+interface Props {
+  hobby: Hobby;
+  onSave?: () => void;
+}
+
+export const HobbyCard: React.FC<Props> = ({ hobby, onSave }) => {
+  // 1. Hooks → 2. State → 3. Effects → 4. Handlers → 5. Return JSX
+};
+```
+
+## Import Aliases
+- `@/` → `web/src/` (configured in vite.config.ts)
+- `@shared/` → `shared/`
+
+## State Management
+- Global state (user, hobbies, AI) → Redux Toolkit slices
+- UI-only state (form inputs, toggles) → `useState`
+- Use `useAppDispatch` and `useAppSelector` typed hooks
+
+## Firebase in Frontend
+- Firebase SDK is **optional** — the app works in local mode without credentials
+- `isFirebaseConfigured` flag in `services/firebase.ts` gates all Firebase calls
+- Hooks (`useAuth`, `useHobbyQuiz`, `useHobbyCoach`) must check this flag before calling `httpsCallable`
+
+## Styling
+- TailwindCSS utility classes; custom theme in `tailwind.config.js`
+- Use `cn()` helper from `utils/cn.ts` for conditional classes
+- Font: Outfit (loaded via Google Fonts in `index.html`)
+
+## API Calls
+- AI features: `httpsCallable()` to Cloud Functions (requires Firebase Auth)
+- CRUD: Axios via `services/api.ts` with `/api` prefix (Vite proxies to backend)
