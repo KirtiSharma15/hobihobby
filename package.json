@@ -72,6 +72,9 @@
     "npm": ">=8.0.0"
   },
   "dependencies": {
+    "express-async-handler": "^1.2.0",
+    "firebase": "^12.14.0",
+    "firebase-admin": "^13.10.0",
     "react-native-web": "~0.19.6"
   }
 }

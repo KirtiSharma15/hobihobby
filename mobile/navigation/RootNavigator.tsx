@@ -1,13 +1,13 @@
 /**
- * Root Navigator - Phase 1: Discovery-First MVP
+ * Root Navigator - Phase 2: Learning Paths MVP
  * 
- * No authentication required for Phase 1.
- * Goes directly to Main screen for hobby discovery.
+ * No authentication required for Phase 2.
+ * Main screen handles navigation to hobby details, learning paths, and lessons.
  * 
  * Feature flags control which screens are available:
- * - AUTH_REQUIRED: false (Phase 1)
- * - ONBOARDING_QUIZ: false (Phase 1)
- * - LEARNING_PATHS: false (Phase 1)
+ * - AUTH_REQUIRED: false (Phase 2)
+ * - ONBOARDING_QUIZ: false (Phase 2)
+ * - LEARNING_PATHS: true (Phase 2)
  */
 
 import React from 'react';
@@ -17,28 +17,26 @@ import { createStackNavigator } from '@react-navigation/stack';
 // Import screens
 import MainTabNavigator from './MainTabNavigator';
 
-// Feature flags for Phase 1
+// Feature flags for Phase 2
 const FEATURES = {
   AUTH_REQUIRED: false,
   ONBOARDING_QUIZ: false,
-  LEARNING_PATHS: false,
+  LEARNING_PATHS: true,  // Enabled in Phase 2
 };
 
 export type RootStackParamList = {
   Main: undefined;
-  // Future Phase 2+ screens (commented out for Phase 1)
+  // Phase 3+ screens (commented out for Phase 2)
   // Onboarding: undefined;
   // Quiz: undefined;
   // Login: undefined;
   // Register: undefined;
-  // LearningPath: { hobbyId: string; hobbyTitle: string };
-  // Lesson: { hobbyId: string; moduleId: string; lessonId: string; lessonTitle: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator: React.FC = () => {
-  // Phase 1: Go directly to Main screen (no auth required)
+  // Phase 2: Main screen handles all navigation including learning paths
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -47,14 +45,13 @@ const RootNavigator: React.FC = () => {
           headerShown: false,
         }}
       >
-        {/* Phase 1: Only Main screen for discovery */}
+        {/* Phase 2: Main screen with discovery and learning paths */}
         <Stack.Screen name="Main" component={MainTabNavigator} />
         
         {/* 
-          Phase 2+ screens will be added here when feature flags are enabled:
+          Phase 3+ screens will be added here when feature flags are enabled:
           - Auth screens (Login, Register)
           - Onboarding screens
-          - Learning path screens
         */}
       </Stack.Navigator>
     </NavigationContainer>

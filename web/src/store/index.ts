@@ -8,6 +8,12 @@
 import { configureStore, createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import axios from 'axios';
+import { userReducer } from './slices/userSlice';
+import { hobbiesReducer } from './slices/hobbiesSlice';
+import { aiReducer } from './slices/aiSlice';
+
+export { setUser, clearUser, setLoading, setError } from './slices/userSlice';
+export { setSavedHobbies, addSavedHobby, removeSavedHobby } from './slices/hobbiesSlice';
 
 // Types
 export interface Hobby {
@@ -156,19 +162,21 @@ const uiSlice = createSlice({
   },
 });
 
-// Configure store (Phase 1: No auth slice)
 export const store = configureStore({
   reducer: {
+    user: userReducer,
     hobbies: hobbiesSlice.reducer,
+    savedHobbies: hobbiesReducer,
     ui: uiSlice.reducer,
+    ai: aiReducer,
   },
 });
 
 // Export actions
-export const { 
-  setHobbies, 
-  setSelectedHobby, 
-  setFilters, 
+export const {
+  setHobbies,
+  setSelectedHobby,
+  setFilters,
   clearFilters,
   toggleSaveHobby,
   saveHobby,

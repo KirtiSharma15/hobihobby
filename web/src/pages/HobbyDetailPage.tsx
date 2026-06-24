@@ -1,7 +1,7 @@
 /**
- * Hobby Detail Page - Phase 1: Discovery-First MVP
+ * Hobby Detail Page - Phase 2: Learning Paths MVP
  * 
- * Shows comprehensive hobby information without requiring commitment.
+ * Shows comprehensive hobby information with learning path access.
  * Features:
  * - What it is (description)
  * - Who it's for (personality fit)
@@ -9,6 +9,7 @@
  * - First 3 beginner steps
  * - Intro video link
  * - Local save functionality
+ * - Link to structured learning path
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -498,6 +499,26 @@ export const HobbyDetailPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+
+        {/* Start Learning CTA */}
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 mb-8 border border-amber-200">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">
+                Ready to learn {hobby.name}?
+              </h3>
+              <p className="text-gray-600">
+                Follow our structured beginner course with videos, articles, and hands-on exercises.
+              </p>
+            </div>
+            <Link
+              to={`/hobby/${hobby.id}/learn`}
+              className="inline-flex items-center justify-center px-6 py-3 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap"
+            >
+              Start Learning →
+            </Link>
+          </div>
+        </div>
 
         {/* Save CTA */}
         <div className="text-center py-8 border-t border-gray-100">

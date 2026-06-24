@@ -135,7 +135,58 @@ export interface StorageInterface {
 }
 
 // ====================================
-// Phase 2+ Types (Commented Out)
+// Phase 2: Learning Paths & Progress
+// ====================================
+
+export type LessonType = 'video' | 'article' | 'exercise' | 'challenge';
+
+export interface Lesson {
+  id: string;
+  title: string;
+  description: string;
+  order: number;
+  content: string; // Markdown content for articles, instructions for exercises
+  externalResources: ExternalResource[];
+  duration: string;
+  type: LessonType;
+  videoUrl?: string; // YouTube URL for video lessons
+  exerciseInstructions?: string[]; // Step-by-step for exercises
+  challengeGoal?: string; // Goal description for challenges
+}
+
+export interface Module {
+  id: string;
+  title: string;
+  description: string;
+  order: number;
+  lessons: Lesson[];
+  icon?: string; // Emoji icon for module
+}
+
+export interface LearningPath {
+  id: string;
+  hobbyId: string;
+  title: string;
+  description: string;
+  modules: Module[];
+  estimatedDuration: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  totalLessons: number;
+}
+
+export interface UserProgress {
+  hobbyId: string;
+  learningPathId: string;
+  completedLessons: string[]; // Array of lesson IDs
+  currentModuleId: string | null;
+  currentLessonId: string | null;
+  startedAt: string; // ISO date string for localStorage
+  lastActivityAt: string; // ISO date string
+  percentComplete: number;
+}
+
+// ====================================
+// Phase 3+ Types (Commented Out)
 // ====================================
 
 // User related types - Enable in Phase 3 when auth is needed
@@ -166,49 +217,5 @@ export interface OnboardingAnswers {
   mentalEnergy: EnergyLevel;
   interests: string[];
   goals: string[];
-}
-*/
-
-// Learning Path types - Enable in Phase 2
-/*
-export type LessonType = 'video' | 'article' | 'exercise' | 'challenge';
-
-export interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  content: string;
-  externalResources: ExternalResource[];
-  duration: string;
-  type: LessonType;
-}
-
-export interface Module {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  lessons: Lesson[];
-}
-
-export interface LearningPath {
-  id: string;
-  hobbyId: string;
-  title: string;
-  description: string;
-  modules: Module[];
-  estimatedDuration: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-}
-
-export interface UserProgress {
-  hobbyId: string;
-  completedLessons: string[];
-  currentModuleId: string | null;
-  currentLessonId: string | null;
-  startedAt: Date;
-  lastActivityAt: Date;
-  percentComplete: number;
 }
 */

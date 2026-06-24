@@ -3,7 +3,8 @@ const { AppError } = require('../middleware/errorHandler');
 const { logger } = require('../utils/logger');
 const { getRecommendations, getMatchCategory } = require('../services/recommendationService');
 const { ART_CRAFT_HOBBIES, CATEGORIES, DIFFICULTIES, TIME_LEVELS, BUDGET_LEVELS } = require('../data/artCraftHobbies');
-
+const { db } = require('../config/firebase');
+const asyncHandler = require('express-async-handler');
 // Feature flag for Phase 1 (Art & Craft only)
 const PHASE_1_ART_CRAFT_ONLY = true;
 
@@ -571,69 +572,48 @@ const deleteHobby = async (req, res) => {
   }
 };
 
-// Save hobby for user
-const saveHobby = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { uid } = req.user;
-    const db = getFirestore();
+const saveHobby = asyncHandler(async (req, res) => {
+  const { uid } = req.user;
+  const hobbyId = req.params.id;
 
-    // Check if hobby exists
-    const hobbyDoc = await db.collection('hobbies').doc(id).get();
-    if (!hobbyDoc.exists) {
-      throw new AppError('Hobby not found', 404);
-    }
+  await db
+    .collection('users')
+    .doc(uid)
+    .collection('savedHobbies')
+    .doc(hobbyId)
+    .set({ savedAt: new Date().toISOString() });
 
-    // Add to user's saved hobbies
-    await db.collection('users').doc(uid).update({
-      savedHobbies: db.FieldValue.arrayUnion(id),
-    });
+  return res.status(200).json({ success: true, message: 'Hobby saved' });
+});
 
-    // Increment hobby saves count
-    await db.collection('hobbies').doc(id).update({
-      saves: db.FieldValue.increment(1),
-    });
+const unsaveHobby = asyncHandler(async (req, res) => {
+  const { uid } = req.user;
+  const hobbyId = req.params.id;
 
-    logger.info(`Hobby saved: ${id} by user: ${uid}`);
+  await db
+    .collection('users')
+    .doc(uid)
+    .collection('savedHobbies')
+    .doc(hobbyId)
+    .delete();
 
-    res.json({
-      success: true,
-      message: 'Hobby saved successfully',
-    });
-  } catch (error) {
-    logger.error('Save hobby error:', error);
-    throw error;
-  }
-};
+  return res.status(200).json({ success: true, message: 'Hobby removed' });
+});
 
-// Unsave hobby for user
-const unsaveHobby = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { uid } = req.user;
-    const db = getFirestore();
+const getSavedHobbies = asyncHandler(async (req, res) => {
+  const { uid } = req.user;
 
-    // Remove from user's saved hobbies
-    await db.collection('users').doc(uid).update({
-      savedHobbies: db.FieldValue.arrayRemove(id),
-    });
+  const snap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('savedHobbies')
+    .orderBy('savedAt', 'desc')
+    .get();
 
-    // Decrement hobby saves count
-    await db.collection('hobbies').doc(id).update({
-      saves: db.FieldValue.increment(-1),
-    });
+  const hobbyIds = snap.docs.map((doc) => doc.id);
 
-    logger.info(`Hobby unsaved: ${id} by user: ${uid}`);
-
-    res.json({
-      success: true,
-      message: 'Hobby removed from saved list',
-    });
-  } catch (error) {
-    logger.error('Unsave hobby error:', error);
-    throw error;
-  }
-};
+  return res.status(200).json({ success: true, data: hobbyIds });
+});
 
 // Mark hobby as completed
 const completeHobby = async (req, res) => {
@@ -831,6 +811,7 @@ module.exports = {
   deleteHobby,
   saveHobby,
   unsaveHobby,
+  getSavedHobbies,
   completeHobby,
   rateHobby,
   addReview,

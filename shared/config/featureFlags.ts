@@ -32,16 +32,16 @@ export interface FeatureFlags {
 }
 
 /**
- * Default feature flags for Phase 1 (Discovery-First MVP)
+ * Default feature flags for Phase 2 (Learning Paths MVP)
  */
 export const FEATURES: FeatureFlags = {
   // Phase 1 - Enabled
   LOCAL_SAVE: true,
   SIMPLE_BROWSE: true,
   
-  // Phase 2 - Disabled initially
-  LEARNING_PATHS: false,
-  PROGRESS_TRACKING: false,
+  // Phase 2 - Enabled
+  LEARNING_PATHS: true,
+  PROGRESS_TRACKING: true,
   
   // Phase 3 - Disabled initially
   AUTH_REQUIRED: false,
@@ -51,7 +51,7 @@ export const FEATURES: FeatureFlags = {
   // Phase 5 - Disabled initially
   AI_RECOMMENDATIONS: false,
   
-  // Quiz - Disabled for Phase 1 (discovery-first, no quiz needed)
+  // Quiz - Disabled (discovery-first, no quiz needed)
   ONBOARDING_QUIZ: false,
 };
 

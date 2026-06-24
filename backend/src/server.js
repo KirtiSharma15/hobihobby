@@ -7,13 +7,11 @@ const morgan = require('morgan');
 const path = require('path');
 require('dotenv').config();
 
-// Import routes (Phase 1: Only hobbies route needed)
+// Import routes (Phase 2: Hobbies + Learning)
 const hobbyRoutes = require('./routes/hobbies');
-
-// Phase 2+ routes (disabled for Phase 1):
-// const authRoutes = require('./routes/auth');
+const learningRoutes = require('./routes/learning');
+const authRoutes = require('./routes/auth');
 // const userRoutes = require('./routes/users');
-// const learningRoutes = require('./routes/learning');
 // const paymentRoutes = require('./routes/payments');
 // const analyticsRoutes = require('./routes/analytics');
 
@@ -101,13 +99,11 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes (Phase 1: Only hobbies route active)
+// API routes (Phase 2: Hobbies + Learning)
 app.use('/api/hobbies', hobbyRoutes);
-
-// Phase 2+ routes (disabled for Phase 1):
-// app.use('/api/auth', authRoutes);
+app.use('/api/learning', learningRoutes);
+app.use('/api/auth', authRoutes);
 // app.use('/api/users', userRoutes);
-// app.use('/api/learning', learningRoutes);
 // app.use('/api/payments', paymentRoutes);
 // app.use('/api/analytics', analyticsRoutes);
 

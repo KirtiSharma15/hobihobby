@@ -1,3 +1,93 @@
+# HobiHobby — Current Build Context
+
+## Product Stage
+Solo founder. Early MVP. Phase 1 partially live on Vercel (Hobby Explorer + Detail Pages).
+No hard launch deadline. Focus is on quality over speed.
+
+## Active Sprint: Sprint 1
+Build Firebase Auth end-to-end + save hobbies.
+
+### Sprint 1 Goals
+- Backend: Firebase Admin SDK token verification middleware
+- Backend: User profile creation in Firestore on first login
+- Backend: Save/unsave hobby endpoints (POST/DELETE /api/hobbies/:id/save)
+- Frontend (web): Login + Signup screens
+- Frontend (web): Auth state in Redux (user slice)
+- Frontend (web): Save hobby button wired to backend
+- Firestore collections: users, savedHobbies
+
+### Sprint 1 Rules
+- Do NOT build community features, the map, or payments yet
+- Do NOT add micro-frontend complexity — single web/ React+Vite app only
+- Database: Firestore only — no MongoDB, no Mongoose
+- Auth: Firebase Auth only — no custom JWT issuing
+
+---
+
+## Roadmap Overview
+
+### Phase 1 — Foundation (current)
+Auth, user profiles, save hobbies, onboarding flow
+
+### Phase 2 — AI Hook
+AI Hobby Discovery Quiz → OpenAI → ranked recommendations with match score + reasoning
+AI Hobby Coach (chat interface, GPT-4 backend)
+Tutorial summarization into beginner checklists
+
+### Phase 3 — Retention Engine
+365-day hobby journey (progressive daily tasks per hobby)
+Streak tracking, weekly milestones, comeback challenges
+Progress photo timeline
+Personalized AI weekly plans
+
+### Phase 4 — Local Discovery
+Hobby Map (Google Maps + Places API)
+Nearby classes, workshops, hobby stores
+Community Circles (small local groups by hobby + location)
+
+### Phase 5 — Monetization
+Freemium gate on Phase 2–3 premium features
+Affiliate links (Amazon, Decathlon) on hobby detail pages
+Sponsored class/workshop listings
+
+### Phase 6 — Scale
+React Native mobile app (Expo)
+Push notifications
+Offline mode
+Social sharing (progress cards, milestone shares)
+
+---
+
+## Architecture Decisions (locked)
+- Monorepo: backend/ + web/ + mobile/ + shared/
+- NO micro-frontends — single web/ React+Vite app
+- Database: Firebase Firestore only (no MongoDB/Mongoose)
+- Auth: Firebase Auth + Firebase Admin SDK on backend
+- State: Redux Toolkit + Redux Persist
+- AI: OpenAI API (Phase 2+) — not yet active
+- Payments: Stripe (Phase 5) — not yet active
+- Maps: Google Maps + Places API (Phase 4) — not yet active
+
+## Tech Stack (active)
+- Frontend: React 18 + Vite + TypeScript + TailwindCSS + Redux Toolkit
+- Backend: Express.js + Node.js + Firebase Admin SDK
+- Database: Firebase Firestore
+- Auth: Firebase Auth
+- Hosting: Vercel (web), TBD (backend)
+
+## AI Stack (Sprint 2+)
+- Model: Gemma 4 26B A4B (via Gemini API) for coach + quiz
+- Model: Gemma 4 E4B for tutorial summarization
+- API: api.google.dev (Gemini API endpoint)
+- Key: stored in Firebase Cloud Functions environment (never in frontend)
+- All AI calls: routed through Cloud Functions (never direct from frontend)
+---
+
+## When sprint changes, update "Active Sprint" above.
+## Do not suggest features or patterns outside the active sprint scope.
+
+
+
 # HobiHobby AI Constitution & Cursor Rules
 
 ## Project Overview

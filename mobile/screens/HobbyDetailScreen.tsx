@@ -1,7 +1,7 @@
 /**
- * Hobby Detail Screen - Phase 1: Discovery-First MVP
+ * Hobby Detail Screen - Phase 2: Learning Paths MVP
  * 
- * Shows comprehensive hobby information without requiring commitment.
+ * Shows comprehensive hobby information with learning path access.
  * Features:
  * - What it is (description)
  * - Who it's for (personality fit)
@@ -9,6 +9,7 @@
  * - First 3 beginner steps
  * - Intro video (YouTube link)
  * - Local save functionality
+ * - Link to structured learning path
  */
 
 import React, { useState, useEffect } from 'react';
@@ -25,6 +26,7 @@ interface HobbyDetailScreenProps {
   onBack: () => void;
   onLikeHobby?: (hobbyId: string) => void;
   likedHobbies?: Set<string>;
+  onStartLearning?: () => void; // Phase 2: Navigate to learning path
 }
 
 // Art & Craft hobby details (matches backend)
@@ -281,6 +283,7 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
 const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
   hobbyId,
   onBack,
+  onStartLearning,
 }) => {
   const { colors } = useTheme();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
@@ -513,6 +516,28 @@ const HobbyDetailScreen: React.FC<HobbyDetailScreenProps> = ({
               )}
             </View>
           </View>
+
+          {/* Start Learning CTA */}
+          {onStartLearning && (
+            <View style={[styles.learningCtaContainer, { backgroundColor: '#fffbeb', borderColor: '#fcd34d' }]}>
+              <View style={styles.learningCtaContent}>
+                <View style={styles.learningCtaText}>
+                  <Text style={[styles.learningCtaTitle, { color: colors.foreground }]}>
+                    Ready to learn {hobby.name}?
+                  </Text>
+                  <Text style={[styles.learningCtaSubtitle, { color: colors.mutedForeground }]}>
+                    Follow our structured beginner course
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.learningCtaButton, { backgroundColor: '#f59e0b' }]}
+                  onPress={onStartLearning}
+                >
+                  <Text style={styles.learningCtaButtonText}>Start Learning →</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Save CTA */}
           <View style={styles.ctaContainer}>
@@ -826,6 +851,38 @@ const styles = StyleSheet.create({
   tipText: {
     fontSize: Typography.fontSize.sm,
     lineHeight: Typography.lineHeight.relaxed * Typography.fontSize.sm,
+  },
+  learningCtaContainer: {
+    marginBottom: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.lg,
+  },
+  learningCtaContent: {
+    flexDirection: 'column',
+    gap: Spacing.md,
+  },
+  learningCtaText: {
+    flex: 1,
+  },
+  learningCtaTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.semibold as any,
+    marginBottom: Spacing.xs,
+  },
+  learningCtaSubtitle: {
+    fontSize: Typography.fontSize.sm,
+  },
+  learningCtaButton: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+  },
+  learningCtaButtonText: {
+    color: 'white',
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.semibold as any,
   },
   ctaContainer: {
     alignItems: 'center',

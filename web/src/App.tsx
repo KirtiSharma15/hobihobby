@@ -1,28 +1,38 @@
-/**
- * App Router - Phase 1: Discovery-First MVP
- * 
- * No authentication required. Simple routes for hobby discovery.
- * Learning paths and lessons disabled for Phase 1.
- */
-
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { store, type RootState } from './store';
+import { useAuth } from './hooks/useAuth';
+import { useAppSelector } from './hooks/useAppDispatch';
 import { Layout } from './components/Layout';
+import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { ExplorePage } from './pages/ExplorePage';
 import { HobbyDetailPage } from './pages/HobbyDetailPage';
+import { LearningPathPage } from './pages/LearningPathPage';
+import { LessonPage } from './pages/LessonPage';
+import QuizPage from './pages/QuizPage';
+import QuizResultsPage from './pages/QuizResultsPage';
+import CoachPage from './pages/CoachPage';
 
-// Phase 1: No auth required, no learning paths yet
-// import { LoginPage } from './pages/LoginPage';
-// import { RegisterPage } from './pages/RegisterPage';
-// import { ProfilePage } from './pages/ProfilePage';
-// import { LearningPathPage } from './pages/LearningPathPage';
-// import { LessonPage } from './pages/LessonPage';
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isAuthenticated = useAppSelector(
+    (state: RootState) => state.user.isAuthenticated
+  );
 
-const App: React.FC = () => {
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const AppRoutes: React.FC = () => {
+  useAuth();
+
   return (
     <Routes>
-      {/* Phase 1: All routes accessible without auth */}
+      <Route path="/login" element={<LoginPage />} />
       <Route
         path="/*"
         element={
@@ -31,13 +41,28 @@ const App: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/explore" element={<ExplorePage />} />
               <Route path="/hobby/:id" element={<HobbyDetailPage />} />
-              {/* Phase 2+ routes (disabled for Phase 1):
               <Route path="/hobby/:hobbyId/learn" element={<LearningPathPage />} />
-              <Route path="/hobby/:hobbyId/learn/:moduleId/:lessonId" element={<LessonPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              */}
+              <Route
+                path="/hobby/:hobbyId/learn/:moduleId/:lessonId"
+                element={<LessonPage />}
+              />
+              <Route path="/quiz" element={<QuizPage />} />
+              <Route
+                path="/quiz/results"
+                element={
+                  <ProtectedRoute>
+                    <QuizResultsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/coach"
+                element={
+                  <ProtectedRoute>
+                    <CoachPage />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Layout>
         }
@@ -46,5 +71,12 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+const App: React.FC = () => {
+  return (
+    <Provider store={store}>
+      <AppRoutes />
+    </Provider>
+  );
+};
 
+export default App;

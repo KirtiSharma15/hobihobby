@@ -8,18 +8,28 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/utils/cn';
+import { useAppSelector } from '@/hooks/useAppDispatch';
 import { FeedbackModal } from './FeedbackModal';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface NavLink {
+  path: string;
+  label: string;
+  suffix?: string;
+}
+
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const isAuthenticated = useAppSelector((state) => state.user.isAuthenticated);
 
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { path: '/', label: 'Home' },
     { path: '/explore', label: 'Explore' },
+    { path: '/quiz', label: 'Discover' },
+    { path: '/coach', label: 'Coach', suffix: '✨' },
   ];
 
   const isActive = (path: string) => {
@@ -56,17 +66,30 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                       : 'text-gray-600 hover:text-primary-600'
                   )}
                 >
-                  {link.label}
+                  <span className="inline-flex items-center gap-1">
+                    {link.label}
+                    {link.suffix && (
+                      <span className="text-xs" aria-hidden>
+                        {link.suffix}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               ))}
             </div>
 
-            {/* Phase 1: No auth buttons - just placeholder for future */}
             <div className="flex items-center gap-4">
-              {/* Phase 2+: Auth buttons will be added here */}
-              <span className="text-xs text-gray-400 hidden sm:inline">
-                Beta
-              </span>
+              {isAuthenticated ? (
+                <span className="text-xs text-gray-500 hidden sm:inline">Signed in</span>
+              ) : (
+                <Link
+                  to="/login"
+                  className="text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors"
+                >
+                  Sign in
+                </Link>
+              )}
+              <span className="text-xs text-gray-400 hidden sm:inline">Beta</span>
             </div>
           </div>
         </div>
