@@ -14,38 +14,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLocalProgress } from '@/hooks/useLocalProgress';
 import { cn } from '@/utils/cn';
-
-// Lesson types
-interface ExternalResource {
-  title: string;
-  url: string;
-  type: 'video' | 'article' | 'tool' | 'community';
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  type: 'video' | 'article' | 'exercise' | 'challenge';
-  duration: string;
-  content: string;
-  videoUrl?: string;
-  exerciseInstructions?: string[];
-  challengeGoal?: string;
-  externalResources: ExternalResource[];
-  moduleName?: string;
-  moduleId?: string;
-}
-
-interface NextLessonInfo {
-  id: string;
-  title: string;
-  moduleId: string;
-  moduleName: string;
-}
-
-// Helper to extract YouTube video ID
+import { getLesson, getNextLesson } from '@/data/learningPaths';
+import type { Lesson } from '@shared/types';
 const getYouTubeEmbedUrl = (url: string): string | null => {
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
   return match ? `https://www.youtube.com/embed/${match[1]}` : null;
@@ -123,39 +93,43 @@ export const LessonPage: React.FC = () => {
   const navigate = useNavigate();
   const { isLessonCompleted, markLessonComplete, markLessonIncomplete } = useLocalProgress(hobbyId || '');
 
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [nextLesson, setNextLesson] = useState<NextLessonInfo | null>(null);
+  const [lesson, setLesson] = useState<(Lesson & { moduleName?: string; moduleId?: string }) | null>(null);
+  const [nextLesson, setNextLesson] = useState<{
+    id: string;
+    title: string;
+    moduleId: string;
+    moduleName: string;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
 
-  // Fetch lesson
   useEffect(() => {
-    const fetchLesson = async () => {
-      if (!hobbyId || !lessonId) return;
-      
-      try {
-        setIsLoading(true);
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-        const response = await fetch(`${API_URL}/learning/${hobbyId}/lessons/${lessonId}`);
-        const data = await response.json();
-        
-        if (data.success) {
-          setLesson(data.data.lesson);
-          setNextLesson(data.data.nextLesson);
-        } else {
-          setError(data.message || 'Failed to load lesson');
-        }
-      } catch (err) {
-        console.error('Error fetching lesson:', err);
-        setError('Unable to load lesson');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!hobbyId || !lessonId) return;
 
-    fetchLesson();
-    setCheckedSteps(new Set()); // Reset checked steps on lesson change
+    setIsLoading(true);
+    const lessonData = getLesson(hobbyId, lessonId);
+    if (lessonData) {
+      setLesson(lessonData);
+      const next = getNextLesson(hobbyId, lessonId);
+      setNextLesson(
+        next
+          ? {
+              id: next.id,
+              title: next.title,
+              moduleId: next.moduleId,
+              moduleName: next.moduleName,
+            }
+          : null
+      );
+      setError(null);
+    } else {
+      setLesson(null);
+      setNextLesson(null);
+      setError('Lesson not found');
+    }
+    setIsLoading(false);
+    setCheckedSteps(new Set());
   }, [hobbyId, lessonId]);
 
   const isComplete = lessonId ? isLessonCompleted(lessonId) : false;

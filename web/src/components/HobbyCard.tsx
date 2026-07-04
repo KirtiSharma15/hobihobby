@@ -6,7 +6,8 @@ import { cn } from '@/utils/cn';
 import { showToast } from '@/utils/toast';
 import { useSaveHobby } from '@/hooks/useSaveHobby';
 import { useAppSelector } from '@/hooks/useAppDispatch';
-import type { Hobby, RootState } from '@/store';
+import type { Hobby } from '@shared/types';
+import type { RootState } from '@/store';
 
 interface HobbyCardProps {
   hobby: Hobby;
@@ -91,7 +92,7 @@ export const HobbyCard: React.FC<HobbyCardProps> = ({ hobby, onClick }) => {
         <div className="h-48 overflow-hidden">
           <img
             src={hobby.imageUrl}
-            alt={hobby.name}
+            alt={hobby.title}
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           />
         </div>
@@ -100,7 +101,7 @@ export const HobbyCard: React.FC<HobbyCardProps> = ({ hobby, onClick }) => {
       <div className="p-5">
         <div className="flex items-start justify-between gap-2 mb-3">
           <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0 pr-8">
-            {hobby.name}
+            {hobby.title}
           </h3>
           {hobby.difficulty && (
             <span

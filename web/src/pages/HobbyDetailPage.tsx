@@ -524,7 +524,7 @@ export const HobbyDetailPage: React.FC = () => {
         <div className="text-center py-8 border-t border-gray-100">
           <Button
             onClick={handleSave}
-            variant={isSaved ? 'secondary' : 'default'}
+            variant={isSaved ? 'secondary' : 'primary'}
             size="lg"
             className="min-w-[200px]"
           >

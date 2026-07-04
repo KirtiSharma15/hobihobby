@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
+import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAppSelector, useAppDispatch } from './useAppDispatch';
 import { addSavedHobby, removeSavedHobby, type RootState } from '../store';
-import api from '../services/api';
+import { auth, db } from '../services/firebase';
 
 export interface UseSaveHobbyReturn {
   isSaved: boolean;
@@ -12,7 +13,7 @@ export interface UseSaveHobbyReturn {
 export const useSaveHobby = (hobbyId: string): UseSaveHobbyReturn => {
   const dispatch = useAppDispatch();
   const savedHobbyIds = useAppSelector(
-    (state: RootState) => state.savedHobbies.savedHobbyIds
+    (state: RootState) => state.hobbies.savedHobbyIds
   );
   const isAuthenticated = useAppSelector(
     (state: RootState) => state.user.isAuthenticated
@@ -24,15 +25,17 @@ export const useSaveHobby = (hobbyId: string): UseSaveHobbyReturn => {
   const [isLoading, setIsLoading] = useState(false);
 
   const toggleSave = useCallback(async () => {
-    if (!isAuthenticated) return;
+    const user = auth.currentUser;
+    if (!isAuthenticated || !user) return;
 
     setIsLoading(true);
     try {
+      const savedRef = doc(db, 'users', user.uid, 'savedHobbies', hobbyId);
       if (isSaved) {
-        await api.delete(`/hobbies/${hobbyId}/save`);
+        await deleteDoc(savedRef);
         dispatch(removeSavedHobby(hobbyId));
       } else {
-        await api.post(`/hobbies/${hobbyId}/save`);
+        await setDoc(savedRef, { savedAt: new Date().toISOString() });
         dispatch(addSavedHobby(hobbyId));
       }
     } finally {

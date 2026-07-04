@@ -6,9 +6,9 @@ import {
   getRedirectResult,
   type User as FirebaseUser,
 } from 'firebase/auth';
+import { collection, getDocs } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, googleProvider, app } from '../services/firebase';
-import api from '../services/api';
+import { auth, googleProvider, app, db } from '../services/firebase';
 import { useAppDispatch } from './useAppDispatch';
 import {
   setUser,
@@ -30,11 +30,6 @@ interface SyncUserCallableResponse {
   data: UserProfile;
 }
 
-interface SavedHobbiesResponse {
-  success: boolean;
-  data: string[];
-}
-
 export interface UseAuthReturn {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
@@ -51,6 +46,11 @@ const syncUserCallable = httpsCallable<SyncUserCallableRequest, SyncUserCallable
   'syncUser'
 );
 
+const fetchSavedHobbyIds = async (uid: string): Promise<string[]> => {
+  const snap = await getDocs(collection(db, 'users', uid, 'savedHobbies'));
+  return snap.docs.map((doc) => doc.id);
+};
+
 const syncSignedInUser = async (
   dispatch: AppDispatch,
   firebaseUser: FirebaseUser
@@ -65,8 +65,8 @@ const syncSignedInUser = async (
     });
     dispatch(setUser(syncResult.data));
 
-    const { data: savedData } = await api.get<SavedHobbiesResponse>('/hobbies/saved');
-    dispatch(setSavedHobbies(savedData.data));
+    const savedIds = await fetchSavedHobbyIds(firebaseUser.uid);
+    dispatch(setSavedHobbies(savedIds));
   } catch {
     dispatch(setError('Failed to load user profile'));
   } finally {
@@ -82,10 +82,10 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
     if (!subscribe) return;
 
     getRedirectResult(auth).then(async (result) => {
-        if (result?.user) {
-          await syncSignedInUser(dispatch, result.user);
-        }
-      });
+      if (result?.user) {
+        await syncSignedInUser(dispatch, result.user);
+      }
+    });
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {

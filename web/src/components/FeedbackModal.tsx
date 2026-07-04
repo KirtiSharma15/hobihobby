@@ -23,11 +23,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ className }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Log feedback locally (for development)
-    console.log('Feedback submitted:', { rating, feedback });
-    
-    // Store in localStorage for later analysis
+
     const existingFeedback = JSON.parse(localStorage.getItem('hobihobby_feedback') || '[]');
     existingFeedback.push({
       rating,

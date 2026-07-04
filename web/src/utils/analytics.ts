@@ -50,12 +50,6 @@ export const trackEvent = (name: string, properties?: Record<string, unknown>) =
   // Store locally
   storeEvent(event);
 
-  // Log in development
-  if (import.meta.env.DEV) {
-    console.log('[Analytics]', name, properties);
-  }
-
-  // Send to Vercel Analytics if available
   if (typeof window !== 'undefined' && (window as any).va) {
     (window as any).va('event', { name, ...properties });
   }

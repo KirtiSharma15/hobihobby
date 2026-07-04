@@ -4,16 +4,14 @@
   "description": "HobiHobby - AI-powered cross-platform hobby discovery app",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run web:dev\" \"npm run backend:dev\"",
-    "dev:micro": "concurrently \"npm run root-config:dev\" \"npm run hobbies:dev\" \"npm run auth:dev\" \"npm run profile:dev\" \"npm run backend:dev\"",
-    "start": "concurrently \"npm run web:start\" \"npm run backend:start\"",
-    "build": "npm run web:build && npm run backend:build",
-    "build:micro": "npm run root-config:build && npm run hobbies:build && npm run auth:build && npm run profile:build",
-    "install:all": "npm install && npm run web:install && npm run backend:install && npm run root-config:install && npm run hobbies:install && npm run auth:install && npm run profile:install",
-    "lint": "npm run web:lint && npm run backend:lint",
-    "lint:fix": "npm run web:lint:fix && npm run backend:lint:fix",
-    "test": "npm run web:test && npm run backend:test",
-    "clean": "npm run web:clean && npm run backend:clean",
+    "dev": "npm run web:dev",
+    "start": "npm run web:start",
+    "build": "npm run web:build",
+    "install:all": "npm install && npm run web:install",
+    "lint": "npm run web:lint",
+    "lint:fix": "npm run web:lint:fix",
+    "test": "npm run web:test",
+    "clean": "npm run web:clean",
     "web:dev": "cd web && npm run dev",
     "web:start": "cd web && npm start",
     "web:build": "cd web && npm run build",
@@ -21,60 +19,19 @@
     "web:lint": "cd web && npm run lint",
     "web:lint:fix": "cd web && npm run lint:fix",
     "web:test": "cd web && npm test",
-    "web:clean": "cd web && npm run clean",
-    "root-config:dev": "cd root-config && npm run dev",
-    "root-config:build": "cd root-config && npm run build",
-    "root-config:install": "cd root-config && npm install",
-    "hobbies:dev": "cd micro-frontends/hobbies && npm run dev",
-    "hobbies:build": "cd micro-frontends/hobbies && npm run build",
-    "hobbies:install": "cd micro-frontends/hobbies && npm install",
-    "auth:dev": "cd micro-frontends/auth && npm run dev",
-    "auth:build": "cd micro-frontends/auth && npm run build",
-    "auth:install": "cd micro-frontends/auth && npm install",
-    "profile:dev": "cd micro-frontends/profile && npm run dev",
-    "profile:build": "cd micro-frontends/profile && npm run build",
-    "profile:install": "cd micro-frontends/profile && npm install",
-    "backend:dev": "cd backend && npm run dev",
-    "backend:start": "cd backend && npm start",
-    "backend:build": "cd backend && npm run build",
-    "backend:install": "cd backend && npm install",
-    "backend:lint": "cd backend && npm run lint",
-    "backend:lint:fix": "cd backend && npm run lint:fix",
-    "backend:test": "cd backend && npm test",
-    "backend:clean": "cd backend && npm run clean"
+    "web:clean": "cd web && npm run clean"
   },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
-  },
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "keywords": [
-    "react-native",
-    "expo",
+    "react",
     "typescript",
-    "express",
     "firebase",
-    "stripe",
     "hobby",
-    "ai",
-    "cross-platform"
+    "ai"
   ],
   "author": "HobiHobby Team",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/hobihobby.git"
-  },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
-  },
-  "dependencies": {
-    "express-async-handler": "^1.2.0",
-    "firebase": "^12.14.0",
-    "firebase-admin": "^13.10.0",
-    "react-native-web": "~0.19.6"
   }
 }

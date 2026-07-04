@@ -12,38 +12,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useLocalProgress } from '@/hooks/useLocalProgress';
 import { cn } from '@/utils/cn';
-
-// Learning path types
-interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  type: 'video' | 'article' | 'exercise' | 'challenge';
-  duration: string;
-}
-
-interface Module {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  icon?: string;
-  lessons: Lesson[];
-}
-
-interface LearningPath {
-  id: string;
-  hobbyId: string;
-  title: string;
-  description: string;
-  difficulty: string;
-  estimatedDuration: string;
-  totalLessons: number;
-  modules: Module[];
-}
-
-// Lesson type icons
+import { getLearningPath } from '@/data/learningPaths';
+import type { LearningPath } from '@shared/types';
 const LESSON_TYPE_ICONS: Record<string, string> = {
   video: '▶️',
   article: '📄',
@@ -60,31 +30,19 @@ export const LearningPathPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch learning path
   useEffect(() => {
-    const fetchLearningPath = async () => {
-      if (!hobbyId) return;
-      
-      try {
-        setIsLoading(true);
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-        const response = await fetch(`${API_URL}/learning/${hobbyId}`);
-        const data = await response.json();
-        
-        if (data.success) {
-          setLearningPath(data.data);
-        } else {
-          setError(data.message || 'Failed to load learning path');
-        }
-      } catch (err) {
-        console.error('Error fetching learning path:', err);
-        setError('Unable to load learning path');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (!hobbyId) return;
 
-    fetchLearningPath();
+    setIsLoading(true);
+    const path = getLearningPath(hobbyId);
+    if (path) {
+      setLearningPath(path);
+      setError(null);
+    } else {
+      setLearningPath(null);
+      setError('Learning path not found for this hobby');
+    }
+    setIsLoading(false);
   }, [hobbyId]);
 
   // Calculate progress
