@@ -1,6 +1,6 @@
 import React from 'react';
 import { Provider } from 'react-redux';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { store, type RootState } from './store';
 import { useAuth } from './hooks/useAuth';
 import { useAppSelector } from './hooks/useAppDispatch';
@@ -16,12 +16,26 @@ import QuizResultsPage from './pages/QuizResultsPage';
 import CoachPage from './pages/CoachPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
   const isAuthenticated = useAppSelector(
     (state: RootState) => state.user.isAuthenticated
   );
+  const isLoading = useAppSelector((state: RootState) => state.user.isLoading);
+  const authChecked = useAppSelector((state: RootState) => state.user.authChecked);
+
+  // Wait for Firebase to report the initial auth state before deciding to
+  // redirect — otherwise the pre-check default (unauthenticated) briefly
+  // bounces logged-in users to /login before the real state resolves.
+  if (!authChecked || isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F5F0E8] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#C4522A] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <>{children}</>;

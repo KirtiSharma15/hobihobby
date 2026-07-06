@@ -91,6 +91,59 @@ export const trackTimeOnPage = (hobbyId: string, seconds: number) => {
 };
 
 /**
+ * Get the user's current daily visit streak (consecutive days ending today
+ * with at least one recorded page view). Used for the streak badge in the UI.
+ */
+export const getVisitStreak = (): number => {
+  const visitDays = new Set(
+    getStoredEvents()
+      .filter((e) => e.name === 'page_view')
+      .map((e) => {
+        const day = new Date(e.timestamp);
+        day.setHours(0, 0, 0, 0);
+        return day.getTime();
+      })
+  );
+
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let streak = 0;
+  let cursor = today.getTime();
+  while (visitDays.has(cursor)) {
+    streak += 1;
+    cursor -= ONE_DAY_MS;
+  }
+  return streak;
+};
+
+/**
+ * Get this week's activity (Monday-Sunday), each entry true if the user
+ * recorded a page view on that day. Used for the 7-day activity grid.
+ */
+export const getWeekActivity = (): boolean[] => {
+  const visitDays = new Set(
+    getStoredEvents()
+      .filter((e) => e.name === 'page_view')
+      .map((e) => {
+        const day = new Date(e.timestamp);
+        day.setHours(0, 0, 0, 0);
+        return day.getTime();
+      })
+  );
+
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  // getDay(): 0=Sun..6=Sat. Convert to Monday-first index (0=Mon..6=Sun).
+  const mondayIndex = (today.getDay() + 6) % 7;
+  const monday = today.getTime() - mondayIndex * ONE_DAY_MS;
+
+  return Array.from({ length: 7 }, (_, i) => visitDays.has(monday + i * ONE_DAY_MS));
+};
+
+/**
  * Get analytics summary (for debugging/export)
  */
 export const getAnalyticsSummary = () => {

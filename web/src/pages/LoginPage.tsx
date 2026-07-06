@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Loader2, Mail, MessageCircle, Sparkles } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSelector } from '@/hooks/useAppDispatch';
-import { cn } from '@/utils/cn';
+import { showToast } from '@/utils/toast';
 import type { RootState } from '@/store';
 
 const GoogleIcon = () => (
-  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
+  <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
     <path
       fill="#4285F4"
       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -29,19 +27,102 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const Logo = () => (
-  <div className="flex flex-col items-center gap-3">
-    <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-2xl flex items-center justify-center shadow-lg">
-      <span className="text-white font-bold text-2xl">H</span>
+const FEATURES = [
+  {
+    icon: Sparkles,
+    tint: 'bg-terracotta/10 text-terracotta',
+    title: 'AI-matched discovery',
+    description: '7 questions to find hobbies made for you.',
+  },
+  {
+    icon: Sparkles,
+    tint: 'bg-olive/10 text-olive',
+    title: 'A 365-day guided journey',
+    description: 'Paced day by day so you actually stick with it.',
+  },
+  {
+    icon: MessageCircle,
+    tint: 'bg-amber-100 text-amber-700',
+    title: 'A coach in your corner',
+    description: 'Ask anything, anytime — plus classes near you.',
+  },
+];
+
+const SignInCard: React.FC<{
+  error: string | null;
+  authInProgress: boolean;
+  onGoogleSignIn: () => void;
+}> = ({ error, authInProgress, onGoogleSignIn }) => {
+  const [email, setEmail] = useState('');
+
+  const handleEmailContinue = () => {
+    showToast('Email sign-in is coming soon — please continue with Google for now.');
+  };
+
+  return (
+    <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-lg md:max-w-md">
+      <h1 className="text-center text-2xl font-bold text-ink">Welcome</h1>
+      <p className="mt-1 text-center text-sm text-taupe">
+        Sign in to pick up your journey — or start a fresh one.
+      </p>
+
+      {error && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={onGoogleSignIn}
+        disabled={authInProgress}
+        className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-white py-3 text-sm font-medium text-ink shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {authInProgress ? (
+          <Loader2 className="h-5 w-5 animate-spin text-terracotta" />
+        ) : (
+          <GoogleIcon />
+        )}
+        Continue with Google
+      </button>
+
+      <div className="my-4 flex items-center gap-3">
+        <hr className="flex-1 border-border" />
+        <span className="text-xs font-medium text-taupe">OR</span>
+        <hr className="flex-1 border-border" />
+      </div>
+
+      <div className="relative">
+        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-taupe" />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@email.com"
+          className="w-full rounded-2xl border border-border bg-cream py-3 pl-11 pr-4 text-sm text-ink placeholder:text-taupe focus:border-terracotta focus:outline-none"
+        />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleEmailContinue}
+        className="mt-3 w-full rounded-2xl bg-terracotta py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-terracotta-dark"
+      >
+        Continue with email
+      </button>
+
+      <p className="mt-4 text-center text-xs text-taupe">
+        By continuing you agree to our{' '}
+        <span className="cursor-default underline">Terms</span> &{' '}
+        <span className="cursor-default underline">Privacy Policy</span>.
+      </p>
     </div>
-    <span className="text-3xl font-display font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">
-      HobiHobby
-    </span>
-  </div>
-);
+  );
+};
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { loginWithGoogle } = useAuth({ subscribe: false });
   const { isAuthenticated, isLoading, error } = useAppSelector(
     (state: RootState) => state.user
@@ -52,9 +133,11 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated && !isLoading) {
-      navigate('/', { replace: true });
+      const from =
+        (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/';
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, location.state]);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -66,61 +149,48 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-primary-50/30 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-xl border-gray-100">
-          <div className="p-8 sm:p-10 text-center">
-            <Logo />
+    <div className="min-h-screen bg-cream font-jakarta md:flex">
+      {/* Left panel - desktop only */}
+      <div className="relative hidden shrink-0 flex-col overflow-hidden bg-gradient-to-br from-terracotta/10 via-cream to-cream px-16 py-16 md:flex md:w-[58%]">
+        <span className="absolute right-[18%] top-[12%] h-3 w-3 rounded-full bg-olive" />
+        <span className="absolute left-[10%] top-[22%] h-2 w-2 rounded-full bg-terracotta" />
 
-            <p className="mt-6 text-gray-600 text-base leading-relaxed">
-              Discover hobbies you&apos;ll love. Sign in to save favorites and
-              track your progress.
-            </p>
-
-            {error && (
-              <p
-                className="mt-6 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
-                role="alert"
-              >
-                {error}
-              </p>
-            )}
-
-            <div className="mt-8">
-              {authInProgress ? (
-                <div className="flex flex-col items-center gap-3 py-4">
-                  <LoadingSpinner size="lg" />
-                  <p className="text-sm font-medium text-gray-600">
-                    Signing you in…
-                  </p>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="lg"
-                  className={cn(
-                    'w-full gap-3 bg-white hover:bg-gray-50 border-gray-200 text-gray-800',
-                    'shadow-sm hover:shadow-md'
-                  )}
-                  onClick={handleGoogleSignIn}
-                >
-                  <GoogleIcon />
-                  Continue with Google
-                </Button>
-              )}
-            </div>
-
-            <p className="mt-8 text-sm text-gray-500">
-              <Link
-                to="/"
-                className="text-primary-600 font-medium hover:text-primary-700 transition-colors"
-              >
-                Continue without signing in
-              </Link>
-            </p>
+        <Link to="/" className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-terracotta shadow-sm">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
-        </Card>
+          <span className="text-lg font-bold text-ink">HobiHobby</span>
+        </Link>
+
+        <div className="flex flex-1 flex-col justify-center">
+          <h1 className="max-w-sm text-3xl font-bold leading-tight text-ink lg:text-4xl">
+            <span className="mr-1 inline-block h-2 w-2 rounded-full bg-terracotta align-middle" />{' '}
+            Find the hobby you&apos;ll actually love.
+          </h1>
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-taupe">
+            Discover, learn and grow a hobby — with an AI coach in your pocket. Made for life in
+            the UAE.
+          </p>
+
+          <div className="mt-10 flex flex-col gap-5">
+            {FEATURES.map(({ icon: Icon, tint, title, description }) => (
+              <div key={title} className="flex items-start gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tint}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-ink">{title}</p>
+                  <p className="text-xs text-taupe">{description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel / mobile full screen */}
+      <div className="flex min-h-screen w-full items-center justify-center bg-cream p-4 md:min-h-0 md:w-[42%] md:px-10 md:py-0">
+        <SignInCard error={error} authInProgress={authInProgress} onGoogleSignIn={handleGoogleSignIn} />
       </div>
     </div>
   );

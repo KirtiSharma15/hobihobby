@@ -479,8 +479,8 @@ firestore.rules
 
 | Feature | Model |
 |---|---|
-| Quiz + Coach | `gemini-2.0-flash` |
-| Tutorial summarization | `gemini-2.0-flash-lite` |
+| Quiz + Coach | `gemini-2.5-flash` |
+| Tutorial summarization | `gemini-2.5-flash-lite` |
 
 ### Out of scope this sprint
 - Mood-based recommendations → Sprint 5

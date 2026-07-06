@@ -8,7 +8,7 @@ const db = admin.firestore();
 
 setGlobalOptions({ region: 'us-central1' });
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 function buildGeminiContents(messages) {
   if (!Array.isArray(messages) || messages.length === 0) {
@@ -38,7 +38,7 @@ function buildGeminiContents(messages) {
   return merged;
 }
 
-async function callGemini({ systemText, contents, maxOutputTokens = 1000, temperature = 0.8 }) {
+async function callGemini({ systemText, contents, maxOutputTokens = 1000, temperature = 0.8, thinkingBudget = 0 }) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new HttpsError('failed-precondition', 'GEMINI_API_KEY is not configured');
@@ -46,7 +46,10 @@ async function callGemini({ systemText, contents, maxOutputTokens = 1000, temper
 
   const body = {
     contents,
-    generationConfig: { temperature, maxOutputTokens },
+    // Gemini 2.5 models "think" by default, and thinking tokens are drawn from the
+    // same maxOutputTokens budget — without capping it, replies can get truncated
+    // before any visible text is produced. Disable thinking unless the caller opts in.
+    generationConfig: { temperature, maxOutputTokens, thinkingConfig: { thinkingBudget } },
   };
 
   if (systemText) {
@@ -145,20 +148,39 @@ Based on these quiz answers, return ONLY a valid JSON object with no markdown:
 User quiz answers: ${JSON.stringify(quizAnswers)}
 Return top 5 hobby recommendations ordered by matchScore descending.`;
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1500,
-        },
-      }
-    );
+    let response;
+    try {
+      response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+            // Disable thinking: this is a straightforward structured-JSON task and
+            // thinking tokens would otherwise eat into maxOutputTokens and truncate the JSON.
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }
+      );
+    } catch (error) {
+      const message = error.response?.data?.error?.message || error.message || 'Gemini API request failed';
+      console.error('Gemini API error (hobbyQuiz):', message, error.response?.data);
+      throw new HttpsError('internal', message);
+    }
 
-    const raw = response.data.candidates[0].content.parts[0].text;
+    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) {
+      throw new HttpsError('internal', 'No response from Gemini');
+    }
+
     const cleaned = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleaned);
+    try {
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Failed to parse Gemini response as JSON (hobbyQuiz):', raw);
+      throw new HttpsError('internal', 'Failed to parse hobby recommendations');
+    }
   }
 );
 
@@ -172,10 +194,9 @@ exports.hobbyCoach = onCall(
 
     const { messages, hobbyContext } = request.data ?? {};
 
-    const systemText = `You are an enthusiastic, knowledgeable hobby coach on HobiHobby.
-You help users learn hobbies, stay motivated, and make progress.
-${hobbyContext ? `The user is currently learning: ${hobbyContext}` : ''}
-Keep responses concise, friendly, and actionable. Max 3 paragraphs.`;
+    const systemText = hobbyContext
+      ? `You are an enthusiastic hobby coach on HobiHobby helping a user learn ${hobbyContext}. Keep responses concise, friendly and actionable. Max 3 paragraphs.`
+      : `You are an enthusiastic hobby coach on HobiHobby. Help users discover and learn hobbies. Never use placeholder text like [hobby] — always speak naturally and ask the user which hobby they are exploring if you don't know. Keep responses concise, friendly and actionable. Max 3 paragraphs.`;
 
     const contents = buildGeminiContents(messages);
     const reply = await callGemini({
@@ -213,19 +234,36 @@ Return ONLY valid JSON with no markdown:
 
 Tutorial content: ${tutorialText.slice(0, 3000)}`;
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 1000,
-        },
-      }
-    );
+    let response;
+    try {
+      response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 1500,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }
+      );
+    } catch (error) {
+      const message = error.response?.data?.error?.message || error.message || 'Gemini API request failed';
+      console.error('Gemini API error (summarizeTutorial):', message, error.response?.data);
+      throw new HttpsError('internal', message);
+    }
 
-    const raw = response.data.candidates[0].content.parts[0].text;
+    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) {
+      throw new HttpsError('internal', 'No response from Gemini');
+    }
+
     const cleaned = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleaned);
+    try {
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Failed to parse Gemini response as JSON (summarizeTutorial):', raw);
+      throw new HttpsError('internal', 'Failed to parse tutorial summary');
+    }
   }
 );

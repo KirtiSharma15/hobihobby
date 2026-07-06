@@ -33,10 +33,34 @@ export default {
           900: '#701a75',
           950: '#4a044e',
         },
+        // HobiHobby mobile design system (Hobby Explorer)
+        cream: '#F5F0E8',
+        surface: '#FFFCF7',
+        terracotta: {
+          DEFAULT: '#C4522A',
+          dark: '#A8431F',
+        },
+        olive: {
+          DEFAULT: '#6B7C3A',
+          dark: '#586023',
+        },
+        ink: '#2C1810',
+        taupe: '#6B5B52',
+        border: '#E8E0D5',
       },
       fontFamily: {
         sans: ['Outfit', 'system-ui', 'sans-serif'],
         display: ['Clash Display', 'Outfit', 'sans-serif'],
+        jakarta: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 0.6s ease-out forwards',
       },
     },
   },

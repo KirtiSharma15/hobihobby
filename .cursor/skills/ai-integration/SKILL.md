@@ -89,15 +89,17 @@ Return ONLY a valid JSON object with no markdown:
 Use `buildGeminiContents()` for multi-turn. Set a `systemInstruction` for persona.
 
 ### Summarization
-Use `gemini-2.0-flash-lite` for lighter tasks. Cap input with `.slice(0, 3000)`.
+Use `gemini-2.5-flash-lite` for lighter tasks. Cap input with `.slice(0, 3000)`.
 
 ## Model Selection Guide
 
 | Use Case | Model | Temperature |
 |---|---|---|
-| Structured JSON output | `gemini-2.0-flash` | 0.5–0.7 |
-| Conversational/creative | `gemini-2.0-flash` | 0.7–0.9 |
-| Summarization/extraction | `gemini-2.0-flash-lite` | 0.3–0.5 |
+| Structured JSON output | `gemini-2.5-flash` | 0.5–0.7 |
+| Conversational/creative | `gemini-2.5-flash` | 0.7–0.9 |
+| Summarization/extraction | `gemini-2.5-flash-lite` | 0.3–0.5 |
+
+> Model IDs get retired on a rolling basis — verify against the [Gemini API changelog](https://ai.google.dev/gemini-api/docs/changelog) if calls start failing with a 404.
 
 ## Deploying
 

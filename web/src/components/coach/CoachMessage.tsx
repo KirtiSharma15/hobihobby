@@ -1,28 +1,39 @@
 import React from 'react';
 import { Message } from '../../store/slices/aiSlice';
+import { cn } from '../../utils/cn';
+import { CoachAvatar } from './CoachAvatar';
 
 interface Props {
   message: Message;
 }
 
+/** Renders **bold** markdown segments from the AI reply as <strong> text. */
+const renderContent = (text: string): React.ReactNode =>
+  text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={i} className="font-semibold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+
 const CoachMessage: React.FC<Props> = ({ message }) => {
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold mr-2 flex-shrink-0 mt-1">
-          H
-        </div>
-      )}
+    <div className={cn('mb-3 flex', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && <CoachAvatar size="sm" className="mr-2 mt-1" />}
       <div
-        className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+        className={cn(
+          'max-w-[75%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
           isUser
-            ? 'bg-purple-600 text-white rounded-br-sm'
-            : 'bg-white text-gray-800 rounded-bl-sm shadow-sm border border-gray-100'
-        }`}
+            ? 'rounded-br-sm bg-terracotta text-white'
+            : 'rounded-bl-sm border border-border bg-surface text-ink shadow-sm'
+        )}
       >
-        {message.content}
+        {renderContent(message.content)}
       </div>
     </div>
   );

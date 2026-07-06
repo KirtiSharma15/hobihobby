@@ -47,9 +47,11 @@ const body = {
 ### Model Selection
 | Feature | Model | Reason |
 |---|---|---|
-| Quiz recommendations | `gemini-2.0-flash` | Reliable structured JSON |
-| Coach chat | `gemini-2.0-flash` | Fast conversational reasoning |
-| Tutorial summarization | `gemini-2.0-flash-lite` | Lighter task, lower cost |
+| Quiz recommendations | `gemini-2.5-flash` | Reliable structured JSON |
+| Coach chat | `gemini-2.5-flash` | Fast conversational reasoning |
+| Tutorial summarization | `gemini-2.5-flash-lite` | Lighter task, lower cost |
+
+> Gemini model IDs get retired periodically (e.g. `gemini-2.0-flash*` shut down June 1, 2026). If Cloud Functions start returning `500` with an `AxiosError 404` from `generativelanguage.googleapis.com`, check the [Gemini API changelog](https://ai.google.dev/gemini-api/docs/changelog) for the current model ID.
 
 ## Gemini Message Format
 - Gemini requires alternating `user`/`model` turns

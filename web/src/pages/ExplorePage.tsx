@@ -1,31 +1,64 @@
 /**
- * Explore Page - Phase 1: Discovery-First MVP
- * 
- * Simple category browsing with filters.
- * Features:
- * - Browse by difficulty, time, budget
- * - Art & Craft category focus
- * - Local save functionality
- * - Clean, calming UI
+ * Explore Page - Hobby Explorer (main browse screen)
+ *
+ * Discovery-first MVP screen: search, category chips, trending picks,
+ * in-progress hobbies, and the full hobby grid. Save/unsave is backed by
+ * Firebase (via useSaveHobby) so signed-in state and saved hobbies live in
+ * Redux. Mobile renders a compact, scrollable feed; desktop renders a hero
+ * banner plus a two-column layout with an AI match / stats / trending
+ * sidebar.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
-import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
-import { useCurrency } from '@/hooks/useCurrency';
+import { Search, SlidersHorizontal, Bell, Flame, Heart, Clock, Sparkles } from 'lucide-react';
+import { useAppSelector } from '@/hooks/useAppDispatch';
+import { useSaveHobby } from '@/hooks/useSaveHobby';
+import { getAllProgress } from '@/hooks/useLocalProgress';
+import { getLearningPath, getLesson } from '@/data/learningPaths';
 import { cn } from '@/utils/cn';
-import { trackPageView, trackFilterUse, trackHobbySave } from '@/utils/analytics';
+import { showToast } from '@/utils/toast';
+import { trackPageView, trackFilterUse, trackHobbySave, getVisitStreak } from '@/utils/analytics';
+import type { RootState } from '@/store';
+
+const CATEGORIES = [
+  'All',
+  'Art',
+  'Music',
+  'Sport',
+  'Tech',
+  'Nature',
+  'Food',
+  'Writing',
+  'Outdoors',
+] as const;
+
+type Category = (typeof CATEGORIES)[number];
+
+interface HobbyItem {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  category: Category;
+  imageUrl: string;
+  timePerWeek: string;
+  cost: string;
+  rating: number;
+  tags: string[];
+}
 
 // Art & Craft hobbies data (matches backend)
-const ART_CRAFT_HOBBIES = [
+const ART_CRAFT_HOBBIES: HobbyItem[] = [
   {
     id: 'watercolor-painting',
     title: 'Watercolor Painting',
-    description: 'Create beautiful, flowing artwork with watercolors. This calming hobby lets you express creativity through soft washes of color.',
+    description:
+      'Create beautiful, flowing artwork with watercolors. This calming hobby lets you express creativity through soft washes of color.',
     difficulty: 'beginner',
+    category: 'Art',
     imageUrl: 'https://images.unsplash.com/photo-1629772451220-8569bfac996f?w=800',
-    timeRequired: '45-90 min',
+    timePerWeek: '3 hrs/wk',
     cost: '$48-88',
     rating: 4.8,
     tags: ['creative', 'relaxing', 'art'],
@@ -33,10 +66,12 @@ const ART_CRAFT_HOBBIES = [
   {
     id: 'acrylic-painting',
     title: 'Acrylic Painting',
-    description: 'Versatile and forgiving, acrylic painting lets you create bold artwork. Great for beginners.',
+    description:
+      'Versatile and forgiving, acrylic painting lets you create bold artwork. Great for beginners.',
     difficulty: 'beginner',
+    category: 'Art',
     imageUrl: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800',
-    timeRequired: '1-2 hours',
+    timePerWeek: '3 hrs/wk',
     cost: '$40-60',
     rating: 4.7,
     tags: ['creative', 'colorful', 'art'],
@@ -46,8 +81,9 @@ const ART_CRAFT_HOBBIES = [
     title: 'Pottery & Ceramics',
     description: 'Shape clay into functional and decorative objects. Tactile and meditative.',
     difficulty: 'beginner',
+    category: 'Art',
     imageUrl: 'https://images.unsplash.com/photo-1629380321590-3b3f75d66dec?w=800',
-    timeRequired: '1-2 hours',
+    timePerWeek: '3 hrs/wk',
     cost: '$45-80',
     rating: 4.9,
     tags: ['creative', 'hands-on', 'craft'],
@@ -57,8 +93,9 @@ const ART_CRAFT_HOBBIES = [
     title: 'Calligraphy & Lettering',
     description: 'Transform words into art with beautiful handwriting. Creative and structured.',
     difficulty: 'beginner',
+    category: 'Writing',
     imageUrl: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800',
-    timeRequired: '30-60 min',
+    timePerWeek: '2 hrs/wk',
     cost: '$23-32',
     rating: 4.6,
     tags: ['creative', 'precise', 'writing'],
@@ -68,200 +105,595 @@ const ART_CRAFT_HOBBIES = [
     title: 'Hand Lettering',
     description: 'Draw decorative letters and typography. Develop your own unique style.',
     difficulty: 'beginner',
+    category: 'Writing',
     imageUrl: 'https://images.unsplash.com/photo-1596465786192-04e9dc3e0f6d?w=800',
-    timeRequired: '30-60 min',
+    timePerWeek: '2 hrs/wk',
     cost: '$26-42',
     rating: 4.7,
     tags: ['creative', 'typography', 'design'],
   },
 ];
 
-type FilterType = 'all' | 'quick' | 'budget-friendly' | 'saved';
+const DIFFICULTY_STYLES: Record<HobbyItem['difficulty'], string> = {
+  beginner: 'bg-olive/15 text-olive',
+  intermediate: 'bg-amber-100 text-amber-700',
+  advanced: 'bg-terracotta/15 text-terracotta',
+};
 
-const FILTERS: { id: FilterType; label: string; icon: string }[] = [
-  { id: 'all', label: 'All Hobbies', icon: '🎨' },
-  { id: 'quick', label: 'Quick Start', icon: '⚡' },
-  { id: 'budget-friendly', label: 'Budget-Friendly', icon: '💰' },
-  { id: 'saved', label: 'Saved', icon: '❤️' },
-];
+interface ContinueHobby extends HobbyItem {
+  percent: number;
+  positionLabel: string;
+}
+
+const SaveHeartButton: React.FC<{ hobbyId: string; className?: string }> = ({
+  hobbyId,
+  className,
+}) => {
+  const { isSaved, toggleSave, isLoading } = useSaveHobby(hobbyId);
+  const isAuthenticated = useAppSelector((state: RootState) => state.user.isAuthenticated);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      showToast('Sign in to save hobbies');
+      return;
+    }
+    trackHobbySave(hobbyId, hobbyId, !isSaved);
+    toggleSave();
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isLoading}
+      aria-label={isSaved ? 'Remove from saved' : 'Save hobby'}
+      className={cn(
+        'flex h-9 w-9 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur-sm transition-colors hover:bg-surface',
+        isLoading && 'cursor-wait',
+        className
+      )}
+    >
+      <Heart className={cn('h-4 w-4', isSaved ? 'fill-terracotta text-terracotta' : 'text-taupe')} />
+    </button>
+  );
+};
+
+const TrendingHobbyCard: React.FC<{
+  hobby: HobbyItem;
+  onNavigate: (path: string) => void;
+  variant?: 'scroll' | 'grid';
+}> = ({ hobby, onNavigate, variant = 'scroll' }) => {
+  const matchScore = Math.round(hobby.rating * 20);
+
+  return (
+    <div
+      onClick={() => onNavigate(`/hobby/${hobby.id}`)}
+      className={cn(
+        'cursor-pointer overflow-hidden rounded-2xl bg-surface shadow-sm transition-transform hover:-translate-y-0.5',
+        variant === 'scroll' ? 'w-[170px] shrink-0' : 'w-full'
+      )}
+    >
+      <div className="relative h-32 w-full overflow-hidden">
+        <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-olive px-2 py-1 text-[11px] font-semibold text-white">
+          <Sparkles className="h-3 w-3" />
+          {matchScore}% match
+        </span>
+        <SaveHeartButton hobbyId={hobby.id} className="absolute right-2 top-2 h-8 w-8" />
+        <span className="absolute bottom-2 left-2 font-mono text-[10px] text-white/80 drop-shadow">
+          [ {hobby.tags[0]} ]
+        </span>
+      </div>
+      <div className="p-3">
+        <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.title}</h3>
+        <div className="flex items-center justify-between gap-2">
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize',
+              DIFFICULTY_STYLES[hobby.difficulty]
+            )}
+          >
+            {hobby.difficulty}
+          </span>
+          <span className="flex items-center gap-1 truncate text-[11px] text-taupe">
+            <Clock className="h-3 w-3 shrink-0" />
+            {hobby.timePerWeek}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ContinueHobbyCard: React.FC<{ hobby: ContinueHobby; onNavigate: (path: string) => void }> = ({
+  hobby,
+  onNavigate,
+}) => (
+  <div
+    onClick={() => onNavigate(`/hobby/${hobby.id}/learn`)}
+    className="flex w-72 shrink-0 cursor-pointer items-center gap-3 rounded-2xl bg-surface p-3 shadow-sm transition-transform hover:-translate-y-0.5"
+  >
+    <img
+      src={hobby.imageUrl}
+      alt={hobby.title}
+      className="h-16 w-16 shrink-0 rounded-xl object-cover"
+    />
+    <div className="min-w-0 flex-1">
+      <h3 className="truncate text-sm font-bold text-ink">{hobby.title}</h3>
+      <p className="truncate text-xs text-taupe">{hobby.positionLabel}</p>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+        <div className="h-full rounded-full bg-terracotta" style={{ width: `${hobby.percent}%` }} />
+      </div>
+    </div>
+    <span className="shrink-0 text-lg font-bold text-terracotta">{hobby.percent}%</span>
+  </div>
+);
+
+const HobbyGridCard: React.FC<{ hobby: HobbyItem; onNavigate: (path: string) => void }> = ({
+  hobby,
+  onNavigate,
+}) => (
+  <div
+    onClick={() => onNavigate(`/hobby/${hobby.id}`)}
+    className="cursor-pointer overflow-hidden rounded-2xl bg-surface shadow-sm transition-transform hover:-translate-y-0.5"
+  >
+    <div className="relative h-28 w-full overflow-hidden">
+      <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+      <SaveHeartButton hobbyId={hobby.id} className="absolute right-2 top-2 h-8 w-8" />
+      <span className="absolute bottom-2 left-2 font-mono text-[10px] text-white/80 drop-shadow">
+        [ {hobby.tags[0]} ]
+      </span>
+    </div>
+    <div className="p-3">
+      <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.title}</h3>
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className={cn(
+            'shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize',
+            DIFFICULTY_STYLES[hobby.difficulty]
+          )}
+        >
+          {hobby.difficulty}
+        </span>
+        <span className="flex items-center gap-1 truncate text-[11px] text-taupe">
+          <Clock className="h-3 w-3 shrink-0" />
+          {hobby.timePerWeek}
+        </span>
+      </div>
+    </div>
+  </div>
+);
+
+interface CategoryChipsProps {
+  activeCategory: Category;
+  onChange: (category: Category) => void;
+  className?: string;
+}
+
+const CategoryChips: React.FC<CategoryChipsProps> = ({ activeCategory, onChange, className }) => (
+  <div className={className} style={{ scrollbarWidth: 'none' }}>
+    {CATEGORIES.map((category) => (
+      <button
+        key={category}
+        type="button"
+        onClick={() => onChange(category)}
+        className={cn(
+          'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+          activeCategory === category
+            ? 'bg-terracotta text-white'
+            : 'border border-border bg-surface text-taupe hover:text-ink'
+        )}
+      >
+        {category}
+      </button>
+    ))}
+  </div>
+);
 
 export const ExplorePage: React.FC = () => {
   const navigate = useNavigate();
-  const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
-  const { formatPrice, isLoading: isCurrencyLoading } = useCurrency();
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const profile = useAppSelector((state: RootState) => state.user.profile);
+  const savedHobbyIds = useAppSelector((state: RootState) => state.hobbies.savedHobbyIds);
+  const recommendations = useAppSelector((state: RootState) => state.ai.recommendations);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<Category>('All');
+  const exploreAllRef = useRef<HTMLDivElement>(null);
 
   // Track page view on mount
   useEffect(() => {
     trackPageView('/explore');
   }, []);
 
-  // Handle filter change with tracking
-  const handleFilterChange = (filter: FilterType) => {
-    setActiveFilter(filter);
-    if (filter !== 'all') {
-      trackFilterUse('explore_filter', filter);
+  const handleCategoryChange = (category: Category) => {
+    setActiveCategory(category);
+    if (category !== 'All') {
+      trackFilterUse('explore_category', category);
     }
   };
 
-  // Handle save with tracking
-  const handleToggleSave = (hobbyId: string, hobbyTitle: string) => {
-    const wasSaved = savedHobbies.has(hobbyId);
-    toggleSaveHobby(hobbyId);
-    trackHobbySave(hobbyId, hobbyTitle, !wasSaved);
-  };
+  const firstName = profile?.displayName?.trim().split(' ')[0] || 'there';
+  const streak = useMemo(() => getVisitStreak(), []);
+  const topRecommendation = recommendations[0];
 
-  // Filter hobbies based on selected filter
+  // Trending: highest rated hobbies, shown with a derived match score
+  const trendingHobbies = useMemo(
+    () => [...ART_CRAFT_HOBBIES].sort((a, b) => b.rating - a.rating).slice(0, 4),
+    []
+  );
+
+  // Pick up where you left off: saved hobbies, enriched with local learning progress
+  const continueHobbies = useMemo<ContinueHobby[]>(() => {
+    const allProgress = getAllProgress();
+
+    return ART_CRAFT_HOBBIES.filter((hobby) => savedHobbyIds.includes(hobby.id)).map((hobby) => {
+      const progress = allProgress[hobby.id];
+      const path = getLearningPath(hobby.id);
+      const totalLessons = path?.totalLessons ?? 0;
+      const percent =
+        progress && totalLessons > 0
+          ? Math.round((progress.completedLessons.length / totalLessons) * 100)
+          : 0;
+
+      const currentLesson =
+        progress?.currentLessonId && getLesson(hobby.id, progress.currentLessonId);
+      const positionLabel = currentLesson
+        ? `${currentLesson.moduleName} · ${currentLesson.title}`
+        : 'Just saved · tap to begin';
+
+      return { ...hobby, percent, positionLabel };
+    });
+  }, [savedHobbyIds]);
+
+  const activeJourneysCount = useMemo(() => {
+    const allProgress = getAllProgress();
+    return ART_CRAFT_HOBBIES.filter((hobby) => Boolean(allProgress[hobby.id])).length;
+  }, []);
+
+  // Filter hobbies based on search query and active category chip
   const filteredHobbies = useMemo(() => {
-    switch (activeFilter) {
-      case 'quick':
-        // Hobbies that can be done in 30-60 min
-        return ART_CRAFT_HOBBIES.filter(h => 
-          h.timeRequired?.includes('30') || h.timeRequired?.includes('45')
-        );
-      case 'budget-friendly':
-        // Hobbies under $50 to start
-        return ART_CRAFT_HOBBIES.filter(h => {
-          const costMatch = h.cost?.match(/\$(\d+)/);
-          if (costMatch) {
-            return parseInt(costMatch[1]) < 50;
-          }
-          return false;
-        });
-      case 'saved':
-        return ART_CRAFT_HOBBIES.filter(h => savedHobbies.has(h.id));
-      default:
-        return ART_CRAFT_HOBBIES;
-    }
-  }, [activeFilter, savedHobbies]);
+    const query = searchQuery.trim().toLowerCase();
 
-  const HobbyCard = ({ hobby }: { hobby: typeof ART_CRAFT_HOBBIES[0] }) => {
-    const isSaved = savedHobbies.has(hobby.id);
-    const displayCost = isCurrencyLoading ? '...' : formatPrice(hobby.cost);
+    return ART_CRAFT_HOBBIES.filter((hobby) => {
+      const matchesCategory = activeCategory === 'All' || hobby.category === activeCategory;
+      const matchesSearch =
+        !query ||
+        hobby.title.toLowerCase().includes(query) ||
+        hobby.tags.some((tag) => tag.toLowerCase().includes(query));
+      return matchesCategory && matchesSearch;
+    });
+  }, [activeCategory, searchQuery]);
 
-    return (
-      <div 
-        className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer group"
-        onClick={() => navigate(`/hobby/${hobby.id}`)}
-      >
-        <div className="relative h-48 overflow-hidden">
-          <img 
-            src={hobby.imageUrl} 
-            alt={hobby.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggleSave(hobby.id, hobby.title);
-            }}
-            className="absolute top-3 right-3 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors shadow-sm"
-          >
-            <span className="text-xl">{isSaved ? '❤️' : '🤍'}</span>
-          </button>
-          <div className="absolute bottom-3 left-3">
-            <span className="px-2 py-1 bg-emerald-500/90 text-white text-xs font-medium rounded-md capitalize">
-              {hobby.difficulty}
-            </span>
-          </div>
-        </div>
-        <div className="p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{hobby.title}</h3>
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{hobby.description}</p>
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>⭐ {hobby.rating}</span>
-            <span>⏱️ {hobby.timeRequired}</span>
-            <span>💰 {displayCost}</span>
-          </div>
-        </div>
-      </div>
-    );
+  const scrollToExploreAll = () => {
+    exploreAllRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
-      {/* Header */}
-      <section className="py-12 border-b border-gray-100 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-serif font-medium text-gray-900 mb-2">
-            Explore Hobbies
-          </h1>
-          <p className="text-gray-600">
-            Find your perfect creative hobby
-          </p>
-        </div>
-      </section>
+    <div className="min-h-screen bg-cream pb-24 font-jakarta md:pb-12">
+      {/* ============================= MOBILE ============================= */}
+      <div className="mx-auto w-full max-w-md md:hidden">
+        {/* Header */}
+        <header className="flex items-center justify-between px-5 pb-4 pt-6">
+          <div>
+            <p className="text-sm text-taupe">Good morning,</p>
+            <h1 className="text-2xl font-bold text-ink">{firstName}</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5">
+              <Flame className="h-4 w-4 fill-amber-500 text-amber-500" />
+              <span className="text-sm font-semibold text-amber-600">{streak}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => showToast("You're all caught up! No new notifications.")}
+              aria-label="Notifications"
+              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface shadow-sm transition-colors hover:bg-white"
+            >
+              <Bell className="h-5 w-5 text-ink" />
+            </button>
+          </div>
+        </header>
 
-      {/* Filters */}
-      <section className="py-6 bg-white border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap gap-3">
-            {FILTERS.map(filter => (
-              <button
-                key={filter.id}
-                onClick={() => handleFilterChange(filter.id)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors',
-                  activeFilter === filter.id
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                )}
-              >
-                <span>{filter.icon}</span>
-                <span>{filter.label}</span>
-              </button>
-            ))}
+        {/* Search bar */}
+        <div className="px-5 pb-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-sm">
+            <Search className="h-5 w-5 shrink-0 text-taupe" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search ${ART_CRAFT_HOBBIES.length}+ hobbies...`}
+              className="w-full bg-transparent text-sm text-ink placeholder:text-taupe focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => showToast('More filters coming soon')}
+              aria-label="Filters"
+              className="shrink-0 text-terracotta"
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
           </div>
         </div>
-      </section>
 
-      {/* Results */}
-      <section className="py-12">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Results count */}
-          <p className="text-sm text-gray-500 mb-6">
-            {filteredHobbies.length} {filteredHobbies.length === 1 ? 'hobby' : 'hobbies'} found
-          </p>
+        {/* Category chips */}
+        <CategoryChips
+          activeCategory={activeCategory}
+          onChange={handleCategoryChange}
+          className="flex gap-2 overflow-x-auto px-5 pb-6"
+        />
+
+        {/* Trending near you */}
+        <section className="pb-8">
+          <div className="flex items-center justify-between px-5 pb-4">
+            <h2 className="text-lg font-bold text-ink">Trending near you</h2>
+            <button
+              type="button"
+              onClick={() => showToast('Full trending list coming soon')}
+              className="text-sm font-medium text-terracotta"
+            >
+              See all
+            </button>
+          </div>
+          <div className="flex gap-4 overflow-x-auto px-5 pb-1" style={{ scrollbarWidth: 'none' }}>
+            {trendingHobbies.slice(0, 3).map((hobby) => (
+              <TrendingHobbyCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
+            ))}
+          </div>
+        </section>
+
+        {/* Pick up where you left off - only when the user has saved hobbies */}
+        {continueHobbies.length > 0 && (
+          <section className="pb-8">
+            <h2 className="px-5 pb-4 text-lg font-bold text-ink">Pick up where you left off</h2>
+            <div
+              className="flex gap-4 overflow-x-auto px-5 pb-1"
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {continueHobbies.map((hobby) => (
+                <ContinueHobbyCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Explore all */}
+        <section className="px-5 pb-10">
+          <div className="flex items-center justify-between pb-4">
+            <h2 className="text-lg font-bold text-ink">Explore all</h2>
+            <span className="text-sm text-taupe">{ART_CRAFT_HOBBIES.length} hobbies</span>
+          </div>
 
           {filteredHobbies.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredHobbies.map(hobby => (
-                <HobbyCard key={hobby.id} hobby={hobby} />
+            <div className="grid grid-cols-2 gap-4">
+              {filteredHobbies.map((hobby) => (
+                <HobbyGridCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">
-                {activeFilter === 'saved' ? '💝' : '🔍'}
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {activeFilter === 'saved' 
-                  ? 'No saved hobbies yet' 
-                  : 'No hobbies match this filter'}
-              </h3>
-              <p className="text-gray-600 max-w-md mx-auto">
-                {activeFilter === 'saved'
-                  ? 'Tap the heart icon on any hobby to save it here'
-                  : 'Try a different filter to explore more options'}
-              </p>
+            <div className="rounded-2xl border border-dashed border-border bg-surface py-12 text-center">
+              <p className="text-2xl">🔍</p>
+              <p className="mt-2 text-sm font-medium text-ink">No hobbies found</p>
+              <p className="mt-1 text-sm text-taupe">Try a different search or category</p>
             </div>
           )}
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* About Section */}
-      <section className="py-12 bg-amber-50/50">
-        <div className="max-w-2xl mx-auto px-4 text-center">
-          <h2 className="text-xl font-serif font-medium text-gray-900 mb-3">
-            Why Art & Craft?
-          </h2>
-          <p className="text-gray-600 leading-relaxed">
-            Creative hobbies like painting, pottery, and calligraphy are perfect for 
-            stress relief and self-expression. They require minimal physical energy 
-            and can be practiced at home on your own schedule.
-          </p>
+      {/* ============================= DESKTOP ============================= */}
+      <div className="hidden md:block">
+        {/* Hero banner */}
+        <div className="mx-auto max-w-6xl px-8 pt-8">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-terracotta to-terracotta-dark px-10 py-10">
+            <div className="pointer-events-none absolute -right-8 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full border-2 border-dashed border-white/20" />
+            <span className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+              <Sparkles className="h-3.5 w-3.5" />
+              AI-matched to you
+            </span>
+            <h1 className="relative mt-4 max-w-lg text-3xl font-bold text-white lg:text-4xl">
+              Discover your next passion
+            </h1>
+            <p className="relative mt-3 max-w-md text-sm text-white/85">
+              60+ hobbies · AI-matched to you · UAE&apos;s #1 hobby platform
+            </p>
+            <div className="relative mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/quiz')}
+                className="rounded-2xl bg-white px-5 py-2.5 text-sm font-semibold text-terracotta transition-colors hover:bg-cream"
+              >
+                Take the Quiz →
+              </button>
+              <button
+                type="button"
+                onClick={scrollToExploreAll}
+                className="rounded-2xl border border-white/60 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                Browse hobbies
+              </button>
+            </div>
+          </div>
         </div>
-      </section>
+
+        {/* Search bar */}
+        <div className="mx-auto max-w-2xl px-8 pt-6">
+          <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-sm">
+            <Search className="h-5 w-5 shrink-0 text-taupe" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search ${ART_CRAFT_HOBBIES.length}+ hobbies...`}
+              className="w-full bg-transparent text-sm text-ink placeholder:text-taupe focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => showToast('More filters coming soon')}
+              aria-label="Filters"
+              className="shrink-0 text-terracotta"
+            >
+              <SlidersHorizontal className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Category chips */}
+        <div className="mx-auto max-w-6xl px-8 pt-6">
+          <CategoryChips
+            activeCategory={activeCategory}
+            onChange={handleCategoryChange}
+            className="flex flex-wrap gap-2"
+          />
+        </div>
+
+        {/* Main + sidebar */}
+        <div className="mx-auto max-w-6xl px-8 pt-8">
+          <div className="lg:flex lg:items-start lg:gap-8">
+            {/* Main column */}
+            <div ref={exploreAllRef} className="lg:w-2/3">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-ink">Explore all</h2>
+                <span className="text-sm text-taupe">{ART_CRAFT_HOBBIES.length} hobbies</span>
+              </div>
+
+              {filteredHobbies.length > 0 ? (
+                <div className="grid grid-cols-3 gap-4">
+                  {filteredHobbies.map((hobby) => (
+                    <HobbyGridCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-border bg-surface py-12 text-center">
+                  <p className="text-2xl">🔍</p>
+                  <p className="mt-2 text-sm font-medium text-ink">No hobbies found</p>
+                  <p className="mt-1 text-sm text-taupe">Try a different search or category</p>
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <aside className="hidden lg:block lg:w-1/3">
+              <div className="sticky top-24 space-y-4">
+                {/* Your AI Match */}
+                {topRecommendation ? (
+                  <div className="rounded-2xl bg-olive p-4 text-white shadow-sm">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold">
+                      <Sparkles className="h-3 w-3" />
+                      YOUR TOP MATCH
+                    </span>
+                    <h3 className="mt-2 text-lg font-bold">{topRecommendation.hobby}</h3>
+                    <p className="mt-0.5 text-xs text-white/85">
+                      {topRecommendation.matchScore}% match · {topRecommendation.difficulty} ·{' '}
+                      {topRecommendation.timeCommitment}
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed text-white/90">
+                      {topRecommendation.reasoning}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/quiz')}
+                      className="mt-3 w-full rounded-xl bg-white py-2 text-xs font-semibold text-olive transition-colors hover:bg-cream"
+                    >
+                      Retake the quiz
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-surface p-4 shadow-sm">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-olive">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Your AI Match
+                    </span>
+                    <p className="mt-2 text-sm font-semibold text-ink">
+                      Discover your perfect hobby
+                    </p>
+                    <p className="mt-1 text-xs text-taupe">
+                      Take our 2-minute quiz to get matches picked just for you.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/quiz')}
+                      className="mt-3 w-full rounded-xl bg-terracotta py-2 text-xs font-semibold text-white transition-colors hover:bg-terracotta-dark"
+                    >
+                      Take the Quiz →
+                    </button>
+                  </div>
+                )}
+
+                {/* Quick stats */}
+                <div className="rounded-2xl bg-surface p-4 shadow-sm">
+                  <h3 className="mb-3 text-sm font-semibold text-ink">Your progress</h3>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl bg-amber-100 p-2.5">
+                      <p className="text-lg font-bold text-amber-700">{streak}</p>
+                      <p className="text-[10px] font-medium text-amber-700/80">day streak</p>
+                    </div>
+                    <div className="rounded-xl bg-terracotta/10 p-2.5">
+                      <p className="text-lg font-bold text-terracotta">{activeJourneysCount}</p>
+                      <p className="text-[10px] font-medium text-terracotta/80">active</p>
+                    </div>
+                    <div className="rounded-xl bg-olive/10 p-2.5">
+                      <p className="text-lg font-bold text-olive">{savedHobbyIds.length}</p>
+                      <p className="text-[10px] font-medium text-olive/80">saved</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trending near you - compact list */}
+                <div className="rounded-2xl bg-surface p-4 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-ink">Trending near you</h3>
+                    <span className="text-[11px] text-taupe">Dubai</span>
+                  </div>
+                  <div className="space-y-3">
+                    {trendingHobbies.map((hobby) => (
+                      <div
+                        key={hobby.id}
+                        onClick={() => navigate(`/hobby/${hobby.id}`)}
+                        className="flex cursor-pointer items-center gap-2"
+                      >
+                        <img
+                          src={hobby.imageUrl}
+                          alt={hobby.title}
+                          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold text-ink">{hobby.title}</p>
+                          <p className="truncate text-[11px] capitalize text-taupe">
+                            {hobby.difficulty}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-olive">
+                          {Math.round(hobby.rating * 20)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          {/* Trending this week - full width */}
+          <section className="mt-10">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-ink">Trending this week</h2>
+              <button
+                type="button"
+                onClick={() => showToast('Full trending list coming soon')}
+                className="text-sm font-medium text-terracotta"
+              >
+                See all
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              {trendingHobbies.map((hobby) => (
+                <TrendingHobbyCard key={hobby.id} hobby={hobby} onNavigate={navigate} variant="grid" />
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import {
   onAuthStateChanged,
   signInWithRedirect,
+  signInWithPopup,
   signOut,
   getRedirectResult,
   type User as FirebaseUser,
@@ -100,10 +101,25 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
 
   const loginWithGoogle = useCallback(async () => {
     try {
-      await signInWithRedirect(auth, googleProvider);
+      if (import.meta.env.DEV) {
+        // signInWithRedirect depends on a cross-origin iframe to the
+        // `authDomain` (*.firebaseapp.com) to persist/retrieve the sign-in
+        // result. Browsers that block third-party storage access (Chrome's
+        // storage partitioning, Safari ITP, etc.) silently drop this on
+        // `localhost`, so the redirect returns with no user and no error.
+        // signInWithPopup doesn't rely on that persisted cross-origin state,
+        // so it works reliably for local dev. Production keeps the redirect
+        // flow (unchanged).
+        await signInWithPopup(auth, googleProvider);
+      } else {
+        await signInWithRedirect(auth, googleProvider);
+      }
     } catch (error) {
-      console.error('Error signing in with Google:', error);
       const code = (error as { code?: string }).code;
+      if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      console.error('Error signing in with Google:', error);
       if (code === 'auth/unauthorized-domain') {
         dispatch(
           setError(

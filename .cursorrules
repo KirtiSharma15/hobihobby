@@ -75,6 +75,58 @@ Social sharing (progress cards, milestone shares)
 - Auth: Firebase Auth
 - Hosting: Vercel (web), TBD (backend)
 
+## Design System (Artisan Theme — Locked)
+
+All UI must follow this design system exactly. Never deviate.
+
+### Colors
+- Background: #F5F0E8 (Warm Cream)
+- Surface/Cards: #FFFCF7
+- Primary/CTA: #C4522A (Terracotta)
+- Accent: #6B7C3A (Olive)
+- Text Primary: #2C1810 (Deep Warm Brown)
+- Text Secondary: #6B5B52
+- Streak/Success: #F59E0B (Amber)
+- Error: #DC2626
+- Border/Divider: #E8E0D5
+
+### Typography
+- Font: Plus Jakarta Sans (loaded via Google Fonts in index.html)
+- Display: text-3xl font-bold
+- H1: text-2xl font-bold
+- H2: text-xl font-semibold
+- H3: text-lg font-semibold (17px)
+- Body: text-sm (15px) font-normal
+- Caption: text-xs (13px) font-normal
+- Label: text-xs (12px) font-medium
+
+### Components
+- Cards: rounded-2xl shadow-sm bg-[#FFFCF7]
+- Buttons primary: bg-[#C4522A] text-white rounded-2xl font-semibold
+- Buttons secondary: border-2 border-[#C4522A] text-[#C4522A] rounded-2xl
+- Category chips active: bg-[#C4522A] text-white rounded-full
+- Category chips inactive: bg-white border border-[#E8E0D5] text-[#6B5B52] rounded-full
+- Difficulty badge Beginner: bg-[#6B7C3A]/10 text-[#6B7C3A] rounded-full text-xs
+- Difficulty badge Intermediate: bg-[#F59E0B]/10 text-[#F59E0B] rounded-full text-xs
+- Difficulty badge Advanced: bg-[#C4522A]/10 text-[#C4522A] rounded-full text-xs
+- Match score badge: bg-[#6B7C3A] text-white rounded-full text-xs font-bold
+- Icons: Lucide React, rounded style, size 20px default
+- Input fields: rounded-2xl border border-[#E8E0D5] bg-white focus:border-[#C4522A]
+
+### Layout
+- Mobile: px-4, single column
+- Tablet (md): px-6, 2-column grid
+- Desktop (lg): px-8, max-w-6xl mx-auto, 3-column grid, no bottom nav
+- Bottom nav: mobile only (hidden on md: and above)
+- Top navbar: all screen sizes
+
+### Rules
+- Never use pure white (#FFFFFF) as page background — always #F5F0E8
+- Never use default blue for links or active states — use #C4522A
+- Never use sharp corners — minimum rounded-xl on interactive elements
+- All pages must work on mobile AND desktop
+- Import Plus Jakarta Sans, not system fonts
+
 ## AI Stack (Sprint 2+)
 - Model: Gemma 4 26B A4B (via Gemini API) for coach + quiz
 - Model: Gemma 4 E4B for tutorial summarization

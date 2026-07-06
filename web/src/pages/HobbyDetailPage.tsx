@@ -1,32 +1,69 @@
 /**
- * Hobby Detail Page - Phase 2: Learning Paths MVP
- * 
- * Shows comprehensive hobby information with learning path access.
+ * Hobby Detail Page - Artisan Theme
+ *
+ * Shows comprehensive hobby information: hero, stats, about, starter kit,
+ * a preview of the 365-day journey, nearby classes, and tutorials.
  * Features:
- * - What it is (description)
- * - Who it's for (personality fit)
+ * - What it is (description) + who it's for (personality fit)
  * - Starter checklist with costs
- * - First 3 beginner steps
+ * - First 3 beginner steps, previewed as a Day 1-3 journey teaser
  * - Intro video link
  * - Local save functionality
  * - Link to structured learning path
+ *
+ * Mobile renders an immersive full-bleed hero with floating back/share/save
+ * controls. Desktop renders a breadcrumb + contained hero in a 60% content
+ * column, with a 40% sticky sidebar holding all primary actions.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/Button';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Share2,
+  Heart,
+  Lock,
+  Play,
+  MapPin,
+  Star,
+  Sparkles,
+  CircleDot,
+  Wrench,
+  Droplet,
+  Settings2,
+} from 'lucide-react';
 import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
 import { useCurrency } from '@/hooks/useCurrency';
 import { cn } from '@/utils/cn';
+import { showToast } from '@/utils/toast';
 import { trackHobbyView, trackHobbySave, trackTimeOnPage } from '@/utils/analytics';
+
+interface NearbyClass {
+  name: string;
+  distanceKm: number;
+  neighborhood: string;
+  note: string;
+  rating: number;
+}
+
+interface Tutorial {
+  title: string;
+  duration: string;
+  onClick: () => void;
+}
 
 // Art & Craft hobby details (matches backend)
 interface HobbyDetail {
   id: string;
   name: string;
   title: string;
+  tagline: string;
+  category: string;
   description: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
+  timePerWeek: string;
+  approxStarterCost: string;
   imageUrl: string;
   rating: number;
   reviewCount: number;
@@ -36,6 +73,10 @@ interface HobbyDetail {
   beginnerSteps: { step: number; title: string; description: string; duration: string; tip: string }[];
   introVideoUrl: string;
   introVideoTitle: string;
+  videoDuration: string;
+  secondaryTutorial: { title: string; duration: string };
+  tertiaryTutorial: { title: string; duration: string };
+  nearbyClasses: NearbyClass[];
 }
 
 const HOBBY_DETAILS: Record<string, HobbyDetail> = {
@@ -43,8 +84,12 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
     id: 'watercolor-painting',
     name: 'Watercolor Painting',
     title: 'Watercolor Painting',
+    tagline: 'Where creativity meets tranquility.',
+    category: 'Art',
     description: 'Create beautiful, flowing artwork with watercolors. This calming hobby lets you express creativity through soft washes of color and delicate brushwork.',
     difficulty: 'beginner',
+    timePerWeek: '3 hrs/wk',
+    approxStarterCost: '$70',
     imageUrl: 'https://images.unsplash.com/photo-1629772451220-8569bfac996f?w=800',
     rating: 4.8,
     reviewCount: 892,
@@ -83,15 +128,26 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
     ],
     introVideoUrl: 'https://www.youtube.com/watch?v=WVrsPoRo5oE',
     introVideoTitle: 'Watercolor Basics for Beginners',
+    videoDuration: '9:48',
+    secondaryTutorial: { title: 'Mixing Your First Palette', duration: '6:15' },
+    tertiaryTutorial: { title: 'Painting Your First Landscape', duration: '10:30' },
+    nearbyClasses: [
+      { name: 'Al Serkal Art Studio', distanceKm: 1.8, neighborhood: 'Al Quoz', note: 'Beginner welcome', rating: 4.7 },
+      { name: 'The Watercolor Room', distanceKm: 3.2, neighborhood: 'Jumeirah', note: 'Small groups', rating: 4.9 },
+    ],
   },
   'acrylic-painting': {
     id: 'acrylic-painting',
     name: 'Acrylic Painting',
     title: 'Acrylic Painting',
+    tagline: 'Bold strokes, quick results.',
+    category: 'Art',
     description: 'Versatile and forgiving, acrylic painting lets you create bold artwork that dries quickly. Great for beginners who want to experiment freely.',
     difficulty: 'beginner',
+    timePerWeek: '3 hrs/wk',
+    approxStarterCost: '$50',
     imageUrl: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800',
-            rating: 4.7,
+    rating: 4.7,
     reviewCount: 756,
     personalityFit: 'Ideal for creative souls who like to experiment. Acrylics are forgiving and dry quickly, making them perfect for those who want immediate results.',
     starterChecklist: [
@@ -128,58 +184,79 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
     ],
     introVideoUrl: 'https://www.youtube.com/watch?v=oGPCDGwCpFg',
     introVideoTitle: 'Acrylic Painting for Complete Beginners',
+    videoDuration: '11:20',
+    secondaryTutorial: { title: 'Blending Techniques 101', duration: '7:40' },
+    tertiaryTutorial: { title: 'Painting Bold Abstract Shapes', duration: '9:15' },
+    nearbyClasses: [
+      { name: 'Bloom Art Space', distanceKm: 2.1, neighborhood: 'Al Barsha', note: 'All levels', rating: 4.6 },
+      { name: 'Canvas & Co Studio', distanceKm: 3.6, neighborhood: 'Downtown Dubai', note: 'Weekend classes', rating: 4.8 },
+    ],
   },
   'pottery-ceramics': {
     id: 'pottery-ceramics',
     name: 'Pottery & Ceramics',
     title: 'Pottery & Ceramics',
-    description: 'Shape clay into functional and decorative objects. This tactile, meditative hobby connects you with an ancient craft and produces beautiful results.',
+    tagline: 'Shape clay into something beautiful.',
+    category: 'Art',
+    description: 'Pottery is a calming, hands-on craft where you shape clay into bowls, mugs and vases. It\u2019s beginner-friendly, deeply meditative, and you\u2019ll have something real to keep after your very first session. Our AI paces a 365-day journey so you improve a little every week \u2014 no pressure, just progress.',
     difficulty: 'beginner',
+    timePerWeek: '3 hrs/wk',
+    approxStarterCost: '$80',
     imageUrl: 'https://images.unsplash.com/photo-1629380321590-3b3f75d66dec?w=800',
     rating: 4.9,
     reviewCount: 1245,
     personalityFit: 'Perfect for those who love working with their hands and find peace in repetitive, focused tasks. Great for people who want something physical to show for their efforts.',
     starterChecklist: [
       { item: 'Air-dry clay (2-5 lbs)', cost: '$10-20', required: true },
-      { item: 'Basic pottery tools set', cost: '$10-15', required: true },
-      { item: 'Rolling pin or PVC pipe', cost: '$5-10', required: true },
-      { item: 'Plastic sheets (to work on)', cost: '$5', required: true },
-      { item: 'Sponge and water bowl', cost: '$5', required: true },
-      { item: 'Acrylic paints for finishing', cost: '$10-15', required: false },
+      { item: 'Turntable', cost: '$10-15', required: true },
+      { item: 'Trimming tools', cost: '$5-10', required: true },
+      { item: 'Sponge', cost: '$5', required: true },
+      { item: 'Glaze set', cost: '$10-15', required: false },
     ],
     estimatedStarterCost: '$45-80',
     beginnerSteps: [
       {
         step: 1,
-        title: 'Condition Your Clay',
+        title: 'Center your first ball of clay',
         description: 'Knead your clay to remove air bubbles and make it pliable. Roll it, fold it, and press it until smooth.',
-        duration: '10-15 min',
+        duration: '~15 min',
         tip: 'If clay feels too dry, add a few drops of water while kneading.',
       },
       {
         step: 2,
-        title: 'Make a Pinch Pot',
+        title: 'Pinch pot fundamentals',
         description: 'Roll a ball of clay, push your thumb into the center, and pinch the walls while rotating. This is the simplest pottery form.',
         duration: '20-30 min',
         tip: 'Keep walls even thickness (about pencil-width) for best results.',
       },
       {
         step: 3,
-        title: 'Create a Coil Pot',
+        title: 'Shaping your first bowl',
         description: 'Roll clay into long coils and stack them in circles to build a pot. Smooth the inside and outside to blend.',
         duration: '45-60 min',
         tip: 'Score and slip (scratch and wet) surfaces before joining pieces.',
       },
     ],
     introVideoUrl: 'https://www.youtube.com/watch?v=MaH2s2Hf7tI',
-    introVideoTitle: 'Hand Building Pottery for Beginners',
+    introVideoTitle: 'Pottery for total beginners',
+    videoDuration: '12:04',
+    secondaryTutorial: { title: 'Centering clay on the wheel', duration: '8:52' },
+    tertiaryTutorial: { title: 'Glaze & finish your first bowl', duration: '15:20' },
+    nearbyClasses: [
+      { name: 'Clay Studio Dubai', distanceKm: 2.3, neighborhood: 'Al Quoz', note: 'Beginner welcome', rating: 4.8 },
+      { name: 'The Pottery Corner', distanceKm: 4.1, neighborhood: 'JLT', note: 'Wheel-throwing', rating: 4.6 },
+    ],
   },
-  'calligraphy': {
+  calligraphy: {
     id: 'calligraphy',
     name: 'Calligraphy & Lettering',
     title: 'Calligraphy & Lettering',
+    tagline: 'Turn your handwriting into art.',
+    category: 'Writing',
     description: 'Transform words into art with beautiful handwriting. Calligraphy combines creativity with structure, producing elegant lettering.',
     difficulty: 'beginner',
+    timePerWeek: '2 hrs/wk',
+    approxStarterCost: '$28',
     imageUrl: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800',
     rating: 4.6,
     reviewCount: 567,
@@ -217,13 +294,24 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
     ],
     introVideoUrl: 'https://www.youtube.com/watch?v=sBoVGqiSzr4',
     introVideoTitle: 'Calligraphy for Absolute Beginners',
+    videoDuration: '8:12',
+    secondaryTutorial: { title: 'Mastering Lowercase Letters', duration: '6:30' },
+    tertiaryTutorial: { title: 'Writing Your First Quote', duration: '7:05' },
+    nearbyClasses: [
+      { name: 'Ink & Quill Studio', distanceKm: 1.5, neighborhood: 'Al Wasl', note: 'Beginner welcome', rating: 4.7 },
+      { name: 'Dubai Calligraphy House', distanceKm: 3.0, neighborhood: 'Deira', note: 'Traditional styles', rating: 4.5 },
+    ],
   },
   'hand-lettering': {
     id: 'hand-lettering',
     name: 'Hand Lettering',
     title: 'Hand Lettering',
+    tagline: 'Freeform letters, your own style.',
+    category: 'Writing',
     description: 'Draw decorative letters and typography by hand. More freeform than calligraphy, hand lettering lets you develop your own unique style.',
     difficulty: 'beginner',
+    timePerWeek: '2 hrs/wk',
+    approxStarterCost: '$35',
     imageUrl: 'https://images.unsplash.com/photo-1596465786192-04e9dc3e0f6d?w=800',
     rating: 4.7,
     reviewCount: 423,
@@ -262,22 +350,246 @@ const HOBBY_DETAILS: Record<string, HobbyDetail> = {
     ],
     introVideoUrl: 'https://www.youtube.com/watch?v=gGQcdIRSjMU',
     introVideoTitle: 'Hand Lettering for Beginners',
+    videoDuration: '9:05',
+    secondaryTutorial: { title: 'Adding Style & Shadows', duration: '5:48' },
+    tertiaryTutorial: { title: 'Designing a Custom Word Art Piece', duration: '8:40' },
+    nearbyClasses: [
+      { name: 'Lettering Lab Dubai', distanceKm: 2.0, neighborhood: 'Al Barsha', note: 'All levels', rating: 4.6 },
+      { name: 'The Type Studio', distanceKm: 3.4, neighborhood: 'Business Bay', note: 'Weekend workshops', rating: 4.7 },
+    ],
   },
 };
 
-type TabType = 'overview' | 'checklist' | 'steps';
+const STRIPE_STYLE: React.CSSProperties = {
+  backgroundImage:
+    'repeating-linear-gradient(135deg, rgba(44,24,16,0.08) 0px, rgba(44,24,16,0.08) 10px, transparent 10px, transparent 20px)',
+};
+
+const CHIP_ICONS = [Sparkles, CircleDot, Wrench, Droplet, Settings2];
+
+/** Turns a verbose checklist entry into a short, chip-friendly label. */
+const shortenChecklistLabel = (item: string): string =>
+  item
+    .replace(/\s*\([^)]*\)/g, '')
+    .split(/\s+(?:and|or)\s+/i)[0]
+    .trim();
+
+const DIFFICULTY_TONE: Record<HobbyDetail['difficulty'], string> = {
+  beginner: 'bg-olive/10 text-olive',
+  intermediate: 'bg-amber-100 text-amber-700',
+  advanced: 'bg-terracotta/10 text-terracotta',
+};
+
+interface StatPillProps {
+  label: string;
+  value: string;
+  tone?: HobbyDetail['difficulty'] | 'default';
+}
+
+const StatPill: React.FC<StatPillProps> = ({ label, value, tone = 'default' }) => (
+  <div
+    className={cn(
+      'flex flex-col items-center gap-0.5 rounded-xl px-2 py-3 text-center',
+      tone === 'default' ? 'border border-border bg-surface text-ink' : DIFFICULTY_TONE[tone]
+    )}
+  >
+    <span className="truncate text-sm font-bold capitalize">{value}</span>
+    <span className="text-[11px] opacity-70">{label}</span>
+  </div>
+);
+
+const NearbyClassCard: React.FC<{ venue: NearbyClass; tint: string }> = ({ venue, tint }) => (
+  <div className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-sm">
+    <div className={cn('h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br', tint)} style={STRIPE_STYLE} />
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-semibold text-ink">{venue.name}</p>
+      <p className="truncate text-xs text-taupe">
+        {venue.distanceKm} km · {venue.neighborhood} · {venue.note}
+      </p>
+    </div>
+    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-ink">
+      <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+      {venue.rating}
+    </span>
+  </div>
+);
+
+const NEARBY_TINTS = ['from-terracotta/25 to-terracotta/5', 'from-olive/25 to-olive/10', 'from-rose-400/25 to-rose-300/10'];
+
+const NearbyClassesSection: React.FC<{ hobby: HobbyDetail }> = ({ hobby }) => (
+  <section>
+    <div className="mb-4 flex items-center justify-between">
+      <h2 className="text-xl font-semibold text-ink">Nearby classes</h2>
+      <button
+        type="button"
+        onClick={() => showToast('The hobby map is launching in a future update')}
+        className="text-sm font-medium text-terracotta"
+      >
+        Map
+      </button>
+    </div>
+    <div className="space-y-3">
+      {hobby.nearbyClasses.map((venue, index) => (
+        <NearbyClassCard key={venue.name} venue={venue} tint={NEARBY_TINTS[index % NEARBY_TINTS.length]} />
+      ))}
+    </div>
+  </section>
+);
+
+const AboutSection: React.FC<{ hobby: HobbyDetail }> = ({ hobby }) => (
+  <section>
+    <h2 className="mb-3 text-xl font-semibold text-ink">About</h2>
+    <p className="text-sm leading-relaxed text-taupe">{hobby.description}</p>
+  </section>
+);
+
+const WhatYouNeedSection: React.FC<{
+  hobby: HobbyDetail;
+  displayStarterCost: string;
+  priceNote: string | null;
+}> = ({ hobby, displayStarterCost, priceNote }) => (
+  <section>
+    <h2 className="mb-3 text-xl font-semibold text-ink">What you&apos;ll need</h2>
+    <div className="mb-4 flex flex-wrap gap-2">
+      {hobby.starterChecklist.map((item, index) => {
+        const ChipIcon = CHIP_ICONS[index % CHIP_ICONS.length];
+        return (
+          <span
+            key={item.item}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink"
+          >
+            <ChipIcon className="h-3.5 w-3.5 text-olive" />
+            {shortenChecklistLabel(item.item)}
+          </span>
+        );
+      })}
+    </div>
+    <div className="flex items-center justify-between gap-3 rounded-2xl bg-terracotta/10 p-4">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-terracotta-dark">Complete starter kit</p>
+        {priceNote && <p className="text-xs text-taupe">{priceNote}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => showToast('Shopping list coming soon')}
+        className="shrink-0 rounded-full bg-terracotta px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark"
+      >
+        Shop · {displayStarterCost}
+      </button>
+    </div>
+  </section>
+);
+
+const JourneySection: React.FC<{ hobby: HobbyDetail; learnPath: string; showCta?: boolean }> = ({
+  hobby,
+  learnPath,
+  showCta = true,
+}) => (
+  <section>
+    <div className="mb-4 flex items-center justify-between">
+      <h2 className="text-xl font-semibold text-ink">Your 365-day journey</h2>
+      <span className="text-xs font-medium text-taupe">AI-guided</span>
+    </div>
+
+    <div className="divide-y divide-border rounded-2xl bg-surface p-4 shadow-sm">
+      <div className="flex items-center gap-4 pb-4">
+        <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl bg-terracotta text-white">
+          <span className="text-[9px] font-semibold uppercase leading-none">Day</span>
+          <span className="text-base font-bold leading-none">1</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ink">{hobby.beginnerSteps[0].title}</p>
+          <p className="text-xs text-taupe">{hobby.beginnerSteps[0].duration} · watch + try</p>
+        </div>
+      </div>
+
+      {hobby.beginnerSteps.slice(1).map((step, index) => (
+        <div key={step.step} className="flex items-center gap-4 pt-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-border">
+            <Lock className="h-4 w-4 text-taupe" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-taupe">{step.title}</p>
+            <p className="text-xs text-taupe/70">
+              {index === 0 ? 'Day 2 · unlocks after Day 1' : 'Day 3'}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <p className="mt-3 text-center text-xs text-taupe">+ 362 more days, paced for you</p>
+
+    {showCta && (
+      <Link
+        to={learnPath}
+        className="mt-4 block w-full rounded-2xl bg-terracotta/10 py-3 text-center text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta/15"
+      >
+        Start Journey →
+      </Link>
+    )}
+  </section>
+);
+
+const TutorialCard: React.FC<{ tutorial: Tutorial; imageUrl: string; className?: string }> = ({
+  tutorial,
+  imageUrl,
+  className,
+}) => (
+  <div onClick={tutorial.onClick} className={cn('cursor-pointer', className)}>
+    <div className="relative h-28 w-full overflow-hidden rounded-2xl">
+      <img src={imageUrl} alt={tutorial.title} className="h-full w-full object-cover" />
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90">
+          <Play className="ml-0.5 h-3.5 w-3.5 fill-terracotta text-terracotta" />
+        </span>
+      </div>
+      <span className="absolute bottom-2 right-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+        {tutorial.duration}
+      </span>
+    </div>
+    <p className="mt-2 line-clamp-2 text-sm font-medium text-ink">{tutorial.title}</p>
+    <p className="text-xs text-taupe">HobiHobby · Studio</p>
+  </div>
+);
+
+const TutorialsSection: React.FC<{
+  tutorials: Tutorial[];
+  imageUrl: string;
+  layout: 'scroll' | 'grid';
+}> = ({ tutorials, imageUrl, layout }) => (
+  <section>
+    <h2 className="mb-4 text-xl font-semibold text-ink">Tutorials</h2>
+    <div
+      className={
+        layout === 'scroll'
+          ? 'flex gap-4 overflow-x-auto pb-1'
+          : 'grid grid-cols-3 gap-4'
+      }
+    >
+      {tutorials.map((tutorial) => (
+        <TutorialCard
+          key={tutorial.title}
+          tutorial={tutorial}
+          imageUrl={imageUrl}
+          className={layout === 'scroll' ? 'w-44 shrink-0' : undefined}
+        />
+      ))}
+    </div>
+  </section>
+);
 
 export const HobbyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
   const { formatPrice, currency, currencyInfo, isLoading: isCurrencyLoading } = useCurrency();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const startTimeRef = useRef<number>(Date.now());
 
   // Get hobby data
   const hobby = HOBBY_DETAILS[id || ''] || HOBBY_DETAILS['watercolor-painting'];
   const isSaved = savedHobbies.has(hobby.id);
+  const matchScore = Math.round(hobby.rating * 20);
 
   // Track page view and time spent
   useEffect(() => {
@@ -305,235 +617,233 @@ export const HobbyDetailPage: React.FC = () => {
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: hobby.title,
+      text: `Check out ${hobby.title} on HobiHobby`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled the share sheet - nothing to do
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard');
+    } catch {
+      showToast('Unable to copy link');
+    }
+  };
+
+  const priceNote =
+    currency !== 'USD' && !isCurrencyLoading ? `Prices shown in ${currencyInfo.name} (${currency})` : null;
+
+  const learnPath = `/hobby/${hobby.id}/learn`;
+  const displayStarterCost = isCurrencyLoading ? '...' : formatPrice(hobby.approxStarterCost);
+
+  const tutorials: Tutorial[] = [
+    { title: hobby.introVideoTitle, duration: hobby.videoDuration, onClick: handleWatchVideo },
+    {
+      title: hobby.secondaryTutorial.title,
+      duration: hobby.secondaryTutorial.duration,
+      onClick: () => showToast('More tutorials coming soon'),
+    },
+    {
+      title: hobby.tertiaryTutorial.title,
+      duration: hobby.tertiaryTutorial.duration,
+      onClick: () => showToast('More tutorials coming soon'),
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 py-4">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-      <button
-        onClick={() => navigate(-1)}
-              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-      >
-              <span className="mr-2">←</span>
-        Back
-      </button>
+    <div className="min-h-screen bg-cream pb-40 font-jakarta lg:pb-16">
+      {/* ============================= MOBILE ============================= */}
+      <div className="lg:hidden">
+        {/* Hero image */}
+        <div className="relative h-64 w-full overflow-hidden">
+          <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/10" />
+
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
             <button
-              onClick={handleSave}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label="Go back"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 text-ink shadow-md transition-colors hover:bg-surface"
             >
-              <span className="text-2xl">{isSaved ? '❤️' : '🤍'}</span>
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 text-ink shadow-md transition-colors hover:bg-surface"
+            >
+              <Share2 className="h-4 w-4" />
             </button>
           </div>
-        </div>
-      </div>
 
-          {/* Hero Image */}
-      <div className="relative h-64 md:h-80 overflow-hidden">
-              <img
-                src={hobby.imageUrl}
-          alt={hobby.title}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        <div className="absolute bottom-6 left-0 right-0">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <span className="inline-block px-3 py-1 bg-emerald-500 text-white text-sm font-medium rounded-md capitalize mb-3">
-                  {hobby.difficulty}
-                </span>
-            <h1 className="text-3xl md:text-4xl font-serif font-medium text-white mb-2">
-              {hobby.title}
-            </h1>
-            <div className="flex items-center gap-3 text-white/90">
-              <span>⭐ {hobby.rating}</span>
-              <span>•</span>
-              <span>{hobby.reviewCount} reviews</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Video Button */}
-        <div 
-          onClick={handleWatchVideo}
-          className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow mb-8"
-        >
-          <div className="w-14 h-14 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-2xl">▶️</span>
-          </div>
-          <div>
-            <p className="text-sm text-gray-500">Watch Introduction</p>
-            <p className="font-medium text-gray-900">{hobby.introVideoTitle}</p>
-          </div>
-            </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-gray-200 pb-4">
-          {(['overview', 'checklist', 'steps'] as TabType[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-                      className={cn(
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize',
-                activeTab === tab
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'text-gray-600 hover:bg-gray-100'
-              )}
-            >
-              {tab === 'checklist' ? 'What You Need' : tab === 'steps' ? 'First Steps' : tab}
-            </button>
-                  ))}
-                </div>
-
-        {/* Tab Content */}
-        <div className="mb-8">
-          {activeTab === 'overview' && (
-            <div className="space-y-8">
-              <div>
-                <h2 className="text-xl font-serif font-medium text-gray-900 mb-3">
-                  What is {hobby.name}?
-                </h2>
-                <p className="text-gray-600 leading-relaxed">
-                  {hobby.description}
-                </p>
-          </div>
-
-              <div>
-                <h2 className="text-xl font-serif font-medium text-gray-900 mb-3">
-                  Who is it for?
-                </h2>
-                <p className="text-gray-600 leading-relaxed">
-                  {hobby.personalityFit}
-                </p>
-              </div>
-
-              <div className="bg-amber-50 rounded-xl p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Estimated cost to start:</span>
-                  <span className="text-xl font-semibold text-gray-900">
-                    {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
-                  </span>
-                </div>
-                {currency !== 'USD' && !isCurrencyLoading && (
-                  <p className="text-xs text-gray-500 mt-2 text-right">
-                    Prices shown in {currencyInfo.name} ({currency})
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'checklist' && (
-            <div className="space-y-6">
-              <p className="text-gray-600">
-                Here's everything you need to get started. Required items are marked with a colored dot.
-              </p>
-              
-              <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
-                {hobby.starterChecklist.map((item, index) => (
-                  <div key={index} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        'w-2 h-2 rounded-full',
-                        item.required ? 'bg-amber-500' : 'bg-gray-300'
-                      )} />
-                      <div>
-                        <p className="font-medium text-gray-900">{item.item}</p>
-                        <p className="text-sm text-gray-500">{item.required ? 'Required' : 'Optional'}</p>
-                      </div>
-                    </div>
-                    <span className="font-medium text-gray-700">
-                      {isCurrencyLoading ? '...' : formatPrice(item.cost)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="bg-amber-50 rounded-xl p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-700">Total estimated cost:</span>
-                  <span className="text-xl font-semibold text-gray-900">
-                    {isCurrencyLoading ? '...' : formatPrice(hobby.estimatedStarterCost)}
-                  </span>
-                </div>
-                {currency !== 'USD' && !isCurrencyLoading && (
-                  <p className="text-xs text-gray-500 mt-2 text-right">
-                    Prices shown in {currencyInfo.name} ({currency})
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'steps' && (
-            <div className="space-y-6">
-              <p className="text-gray-600">
-                Start with these 3 beginner-friendly steps. Take your time with each one.
-              </p>
-
-              {hobby.beginnerSteps.map(step => (
-                <div key={step.step} className="bg-white rounded-xl border border-gray-200 p-5">
-                  <div className="flex items-start gap-4 mb-3">
-                    <div className="w-10 h-10 bg-amber-500 text-white rounded-full flex items-center justify-center font-semibold flex-shrink-0">
-                      {step.step}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 mb-1">{step.title}</h3>
-                      <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-sm rounded">
-                        ⏱️ {step.duration}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4 pl-14">
-                    {step.description}
-                  </p>
-                  <div className="bg-emerald-50 rounded-lg p-4 ml-14">
-                    <p className="text-sm">
-                      <span className="font-medium text-emerald-700">💡 Tip: </span>
-                      <span className="text-gray-700">{step.tip}</span>
-                    </p>
-                    </div>
-                    </div>
-              ))}
-                      </div>
-                    )}
-                  </div>
-
-        {/* Start Learning CTA */}
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl p-6 mb-8 border border-amber-200">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-serif font-medium text-gray-900 mb-1">
-                Ready to learn {hobby.name}?
-              </h3>
-              <p className="text-gray-600">
-                Follow our structured beginner course with videos, articles, and hands-on exercises.
-              </p>
-            </div>
-            <Link
-              to={`/hobby/${hobby.id}/learn`}
-              className="inline-flex items-center justify-center px-6 py-3 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors whitespace-nowrap"
-            >
-              Start Learning →
-            </Link>
-          </div>
+          <span className="absolute bottom-4 left-4 inline-flex items-center gap-1 rounded-full bg-olive px-3 py-1 text-xs font-bold text-white">
+            <Sparkles className="h-3 w-3" />
+            {matchScore}% match
+          </span>
         </div>
 
-        {/* Save CTA */}
-        <div className="text-center py-8 border-t border-gray-100">
-          <Button
+        <div className="relative -mt-4 rounded-t-3xl bg-cream px-4 pt-8 sm:px-6">
+          {/* Floating save heart - straddles the hero seam */}
+          <button
+            type="button"
             onClick={handleSave}
-            variant={isSaved ? 'secondary' : 'primary'}
-            size="lg"
-            className="min-w-[200px]"
+            aria-label={isSaved ? 'Remove from saved' : 'Save hobby'}
+            className="absolute -top-5 right-4 flex h-11 w-11 items-center justify-center rounded-full bg-surface shadow-md transition-transform hover:scale-105 sm:right-6"
           >
-            {isSaved ? 'Saved to My Hobbies ❤️' : 'Save This Hobby'}
-          </Button>
-          <p className="text-sm text-gray-500 mt-3">
-            Save hobbies to find them easily later
-          </p>
+            <Heart className={cn('h-5 w-5', isSaved ? 'fill-terracotta text-terracotta' : 'text-ink')} />
+          </button>
+
+          <h1 className="text-3xl font-bold text-ink">{hobby.title}</h1>
+          <p className="mt-1 italic text-taupe">{hobby.tagline}</p>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <StatPill label="difficulty" value={hobby.difficulty} tone={hobby.difficulty} />
+            <StatPill label="time" value={hobby.timePerWeek} />
+            <StatPill label="starter kit" value={`~${displayStarterCost}`} />
+          </div>
+
+          <div className="my-6 h-px bg-border" />
+
+          <div className="space-y-8 pb-10">
+            <AboutSection hobby={hobby} />
+            <WhatYouNeedSection hobby={hobby} displayStarterCost={displayStarterCost} priceNote={priceNote} />
+            <JourneySection hobby={hobby} learnPath={learnPath} />
+            <NearbyClassesSection hobby={hobby} />
+            <TutorialsSection tutorials={tutorials} imageUrl={hobby.imageUrl} layout="scroll" />
+          </div>
         </div>
+      </div>
+
+      {/* ============================= DESKTOP ============================= */}
+      <div className="hidden lg:block">
+        <div className="mx-auto max-w-6xl px-8 pt-6">
+          {/* Breadcrumb */}
+          <nav className="mb-4 flex items-center gap-1.5 text-sm">
+            <Link to="/explore" className="font-medium text-terracotta hover:underline">
+              Explore
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-taupe" />
+            <span className="text-taupe">Art &amp; Craft</span>
+            <ChevronRight className="h-3.5 w-3.5 text-taupe" />
+            <span className="text-taupe">{hobby.title}</span>
+          </nav>
+
+          <div className="flex items-start gap-10">
+            {/* Main content - 60% */}
+            <div className="w-[60%]">
+              <div className="relative h-80 w-full overflow-hidden rounded-2xl">
+                <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+                <span className="absolute bottom-4 left-4 inline-flex items-center gap-1 rounded-full bg-olive px-3 py-1 text-xs font-bold text-white">
+                  <Sparkles className="h-3 w-3" />
+                  {matchScore}% match
+                </span>
+              </div>
+
+              <h1 className="mt-6 text-3xl font-bold text-ink">{hobby.title}</h1>
+              <p className="mt-1 italic text-taupe">{hobby.tagline}</p>
+
+              <div className="my-6 h-px bg-border" />
+
+              <div className="space-y-8">
+                <AboutSection hobby={hobby} />
+                <WhatYouNeedSection hobby={hobby} displayStarterCost={displayStarterCost} priceNote={priceNote} />
+                <JourneySection hobby={hobby} learnPath={learnPath} showCta={false} />
+                <TutorialsSection tutorials={tutorials} imageUrl={hobby.imageUrl} layout="grid" />
+              </div>
+            </div>
+
+            {/* Sidebar - 40%, sticky */}
+            <aside className="w-[40%]">
+              <div className="sticky top-24 space-y-4">
+                <div className="space-y-4 rounded-2xl bg-surface p-5 shadow-sm">
+                  <div className="grid grid-cols-3 gap-2">
+                    <StatPill label="difficulty" value={hobby.difficulty} tone={hobby.difficulty} />
+                    <StatPill label="time" value={hobby.timePerWeek} />
+                    <StatPill label="starter" value={`~${displayStarterCost}`} />
+                  </div>
+
+                  <Link
+                    to={learnPath}
+                    className="block w-full rounded-2xl bg-terracotta py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark"
+                  >
+                    Start Learning →
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-terracotta/10 py-3 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta/15"
+                  >
+                    <Heart className={cn('h-4 w-4', isSaved && 'fill-current')} />
+                    {isSaved ? 'Saved' : 'Save hobby'}
+                  </button>
+
+                  <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
+                    <span className="text-taupe">Complete starter kit</span>
+                    <span className="font-semibold text-ink">{displayStarterCost}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex w-full items-center justify-center gap-2 text-xs font-medium text-taupe transition-colors hover:text-ink"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    Share this hobby
+                  </button>
+                </div>
+
+                <div className="rounded-2xl bg-surface p-5 shadow-sm">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                      <MapPin className="h-4 w-4 text-taupe" />
+                      Nearby classes
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => showToast('The hobby map is launching in a future update')}
+                      className="text-xs font-medium text-terracotta"
+                    >
+                      Map
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {hobby.nearbyClasses.map((venue, index) => (
+                      <NearbyClassCard
+                        key={venue.name}
+                        venue={venue}
+                        tint={NEARBY_TINTS[index % NEARBY_TINTS.length]}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky bottom bar - mobile only, sits above the global bottom nav */}
+      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border bg-surface p-4 lg:hidden">
+        <Link
+          to={learnPath}
+          className="block w-full rounded-2xl bg-terracotta py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark"
+        >
+          Start Learning
+        </Link>
       </div>
     </div>
   );

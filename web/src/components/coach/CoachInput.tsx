@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Send } from 'lucide-react';
 
 interface Props {
   onSend: (message: string) => void;
@@ -22,23 +23,23 @@ const CoachInput: React.FC<Props> = ({ onSend, isLoading }) => {
   };
 
   return (
-    <div className="flex items-end gap-2 p-3 bg-white border-t border-gray-100">
+    <div className="flex flex-shrink-0 items-end gap-2 border-t border-border bg-surface p-3">
       <textarea
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Ask your hobby coach..."
+        placeholder="Ask your coach anything…"
         rows={1}
-        className="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-purple-400 max-h-32"
+        className="max-h-32 flex-1 resize-none rounded-2xl border border-border bg-cream px-4 py-2.5 text-sm text-ink placeholder:text-taupe focus:border-terracotta focus:outline-none"
       />
       <button
+        type="button"
         onClick={handleSend}
         disabled={!input.trim() || isLoading}
-        className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center disabled:opacity-40 hover:bg-purple-700 transition-colors flex-shrink-0"
+        aria-label="Send message"
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-terracotta transition-colors hover:bg-terracotta-dark disabled:opacity-40"
       >
-        <svg className="w-4 h-4 text-white rotate-90" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-        </svg>
+        <Send className="h-4 w-4 rotate-90 text-white" />
       </button>
     </div>
   );
