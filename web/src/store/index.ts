@@ -3,6 +3,7 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import { userReducer } from './slices/userSlice';
 import { hobbiesReducer } from './slices/hobbiesSlice';
 import { aiReducer } from './slices/aiSlice';
+import { journeyReducer } from './slices/journeySlice';
 
 export { setUser, clearUser, setLoading, setError } from './slices/userSlice';
 export { setSavedHobbies, addSavedHobby, removeSavedHobby } from './slices/hobbiesSlice';
@@ -12,6 +13,7 @@ export const store = configureStore({
     user: userReducer,
     hobbies: hobbiesReducer,
     ai: aiReducer,
+    journey: journeyReducer,
   },
 });
 

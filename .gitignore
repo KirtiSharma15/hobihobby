@@ -56,3 +56,4 @@ coverage/
 *.pem
 serviceAccount.json
 firebase-*.json
+service-account.json

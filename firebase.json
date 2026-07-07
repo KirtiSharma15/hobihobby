@@ -30,8 +30,5 @@
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  },
-  "auth": {
-    "authorizedDomains": ["hobihobby.com", "localhost"]
   }
 }

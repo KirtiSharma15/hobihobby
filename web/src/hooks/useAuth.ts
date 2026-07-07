@@ -20,6 +20,8 @@ import {
   type AppDispatch,
 } from '../store';
 import type { UserProfile } from '../store/slices/userSlice';
+import { setJourney } from '../store/slices/journeySlice';
+import { fetchUserJourneys } from './useJourney';
 
 interface SyncUserCallableRequest {
   displayName: string;
@@ -68,6 +70,9 @@ const syncSignedInUser = async (
 
     const savedIds = await fetchSavedHobbyIds(firebaseUser.uid);
     dispatch(setSavedHobbies(savedIds));
+
+    const journeys = await fetchUserJourneys(firebaseUser.uid);
+    journeys.forEach((journey) => dispatch(setJourney(journey)));
   } catch {
     dispatch(setError('Failed to load user profile'));
   } finally {

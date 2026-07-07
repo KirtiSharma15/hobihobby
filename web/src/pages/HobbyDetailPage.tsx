@@ -16,7 +16,7 @@
  * column, with a 40% sticky sidebar holding all primary actions.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -24,6 +24,7 @@ import {
   Share2,
   Heart,
   Lock,
+  Loader2,
   Play,
   MapPin,
   Star,
@@ -34,6 +35,7 @@ import {
   Settings2,
 } from 'lucide-react';
 import { useLocalSavedHobbies } from '@/hooks/useLocalSavedHobbies';
+import { useJourney } from '@/hooks/useJourney';
 import { useCurrency } from '@/hooks/useCurrency';
 import { cn } from '@/utils/cn';
 import { showToast } from '@/utils/toast';
@@ -480,11 +482,12 @@ const WhatYouNeedSection: React.FC<{
   </section>
 );
 
-const JourneySection: React.FC<{ hobby: HobbyDetail; learnPath: string; showCta?: boolean }> = ({
-  hobby,
-  learnPath,
-  showCta = true,
-}) => (
+const JourneySection: React.FC<{
+  hobby: HobbyDetail;
+  showCta?: boolean;
+  onStartJourney: () => void;
+  isStartingJourney: boolean;
+}> = ({ hobby, showCta = true, onStartJourney, isStartingJourney }) => (
   <section>
     <div className="mb-4 flex items-center justify-between">
       <h2 className="text-xl font-semibold text-ink">Your 365-day journey</h2>
@@ -521,12 +524,18 @@ const JourneySection: React.FC<{ hobby: HobbyDetail; learnPath: string; showCta?
     <p className="mt-3 text-center text-xs text-taupe">+ 362 more days, paced for you</p>
 
     {showCta && (
-      <Link
-        to={learnPath}
-        className="mt-4 block w-full rounded-2xl bg-terracotta/10 py-3 text-center text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta/15"
+      <button
+        type="button"
+        onClick={onStartJourney}
+        disabled={isStartingJourney}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-terracotta/10 py-3 text-center text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta/15 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Start Journey →
-      </Link>
+        {isStartingJourney ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <span>Start Journey →</span>
+        )}
+      </button>
     )}
   </section>
 );
@@ -583,8 +592,10 @@ export const HobbyDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
+  const { startJourney } = useJourney();
   const { formatPrice, currency, currencyInfo, isLoading: isCurrencyLoading } = useCurrency();
   const startTimeRef = useRef<number>(Date.now());
+  const [isStartingJourney, setIsStartingJourney] = useState(false);
 
   // Get hobby data
   const hobby = HOBBY_DETAILS[id || ''] || HOBBY_DETAILS['watercolor-painting'];
@@ -614,6 +625,20 @@ export const HobbyDetailPage: React.FC = () => {
   const handleWatchVideo = () => {
     if (hobby.introVideoUrl) {
       window.open(hobby.introVideoUrl, '_blank');
+    }
+  };
+
+  const handleStartJourney = async () => {
+    setIsStartingJourney(true);
+    try {
+      // Whether the journey is brand new or already existed, the user lands
+      // on the same daily journey view.
+      await startJourney(hobby.id);
+      navigate(`/hobby/${hobby.id}/journey`);
+    } catch {
+      showToast('Failed to start journey. Please try again.');
+    } finally {
+      setIsStartingJourney(false);
     }
   };
 
@@ -720,7 +745,11 @@ export const HobbyDetailPage: React.FC = () => {
           <div className="space-y-8 pb-10">
             <AboutSection hobby={hobby} />
             <WhatYouNeedSection hobby={hobby} displayStarterCost={displayStarterCost} priceNote={priceNote} />
-            <JourneySection hobby={hobby} learnPath={learnPath} />
+            <JourneySection
+              hobby={hobby}
+              onStartJourney={handleStartJourney}
+              isStartingJourney={isStartingJourney}
+            />
             <NearbyClassesSection hobby={hobby} />
             <TutorialsSection tutorials={tutorials} imageUrl={hobby.imageUrl} layout="scroll" />
           </div>
@@ -760,7 +789,12 @@ export const HobbyDetailPage: React.FC = () => {
               <div className="space-y-8">
                 <AboutSection hobby={hobby} />
                 <WhatYouNeedSection hobby={hobby} displayStarterCost={displayStarterCost} priceNote={priceNote} />
-                <JourneySection hobby={hobby} learnPath={learnPath} showCta={false} />
+                <JourneySection
+                  hobby={hobby}
+                  showCta={false}
+                  onStartJourney={handleStartJourney}
+                  isStartingJourney={isStartingJourney}
+                />
                 <TutorialsSection tutorials={tutorials} imageUrl={hobby.imageUrl} layout="grid" />
               </div>
             </div>
@@ -775,12 +809,25 @@ export const HobbyDetailPage: React.FC = () => {
                     <StatPill label="starter" value={`~${displayStarterCost}`} />
                   </div>
 
-                  <Link
+                  {/* <Link
                     to={learnPath}
                     className="block w-full rounded-2xl bg-terracotta py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark"
                   >
                     Start Learning →
-                  </Link>
+                  </Link> */}
+
+                  <button
+                    type="button"
+                    onClick={handleStartJourney}
+                    disabled={isStartingJourney}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-terracotta py-3 text-sm font-semibold text-terracotta transition-colors hover:bg-terracotta/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isStartingJourney ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span>Start Journey →</span>
+                    )}
+                  </button>
 
                   <button
                     type="button"

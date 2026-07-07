@@ -416,8 +416,8 @@ Font: **Plus Jakarta Sans**
 | Sprint | Focus | Status |
 |---|---|---|
 | 1 | Auth, save hobbies, Firebase hosting | ✅ Complete |
-| 2 | AI Discovery Quiz + AI Hobby Coach | 🔄 In Progress |
-| 3 | 365-day journey, streaks, retention | 🔲 Not started |
+| 2 | AI Discovery Quiz + AI Hobby Coach | ✅ Complete |
+| 3 | 365-day journey, streaks, retention | 🔄 In Progress |
 | 4 | Hobby Map, local discovery, Community Circles | 🔲 Not started |
 | 5 | Mood-based recommendations + MCP Coach | 🔲 Not started |
 | 6 | Monetization — Stripe, freemium, affiliate | 🔲 Not started |

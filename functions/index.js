@@ -210,6 +210,213 @@ exports.hobbyCoach = onCall(
   }
 );
 
+// ─── Retention: Journey day-boundary helpers ─────────────────────────────
+function startOfUtcDay(date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function toDate(value) {
+  if (!value) return null;
+  return typeof value.toDate === 'function' ? value.toDate() : new Date(value);
+}
+
+// Computes the new streak based on how many calendar days have passed since
+// the last completed activity: same day → unchanged, next day → +1, gap → reset to 1.
+function calculateNewStreak(lastActivityAt, currentStreak) {
+  const lastDate = toDate(lastActivityAt);
+  if (!lastDate) return 1;
+
+  const diffDays = Math.round((startOfUtcDay(new Date()) - startOfUtcDay(lastDate)) / 86400000);
+  if (diffDays <= 0) return currentStreak;
+  if (diffDays === 1) return currentStreak + 1;
+  return 1;
+}
+
+function calculateMilestones({ existingMilestones, completedDaysCount, streak }) {
+  const thresholds = [
+    { condition: completedDaysCount === 1, id: 'first_day' },
+    { condition: streak === 3, id: 'three_day_streak' },
+    { condition: streak === 7, id: 'week_streak' },
+    { condition: streak === 30, id: 'month_streak' },
+    { condition: completedDaysCount === 10, id: 'ten_days' },
+    { condition: completedDaysCount === 30, id: 'thirty_days' },
+  ];
+
+  const milestones = [...existingMilestones];
+  const newlyEarned = [];
+
+  for (const { condition, id } of thresholds) {
+    if (condition && !milestones.includes(id)) {
+      milestones.push(id);
+      newlyEarned.push(id);
+    }
+  }
+
+  return { milestones, newlyEarned };
+}
+
+// ─── Retention: Start a hobby journey ─────────────────────────────────────
+exports.startJourney = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be logged in');
+  }
+
+  const uid = request.auth.uid;
+  const { hobbyId } = request.data ?? {};
+  if (!hobbyId) {
+    throw new HttpsError('invalid-argument', 'hobbyId is required');
+  }
+
+  const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+  const journeySnap = await journeyRef.get();
+
+  if (journeySnap.exists) {
+    return { alreadyStarted: true, data: journeySnap.data() };
+  }
+
+  const templateSnap = await db.collection('journeyTemplates').doc(hobbyId).get();
+  if (!templateSnap.exists) {
+    throw new HttpsError('not-found', 'Journey template not found');
+  }
+  const template = templateSnap.data();
+
+  const newJourney = {
+    hobbyId,
+    hobbyName: template.hobbyName,
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
+    currentDay: 1,
+    lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
+    streak: 0,
+    longestStreak: 0,
+    completedDays: [],
+    milestones: [],
+    totalDays: 365,
+  };
+
+  await journeyRef.set(newJourney);
+  return { isNewJourney: true, data: newJourney };
+});
+
+// ─── Retention: Mark a journey day as complete ────────────────────────────
+exports.completeDay = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be logged in');
+  }
+
+  const uid = request.auth.uid;
+  const { hobbyId, day, photoURL } = request.data ?? {};
+  if (!hobbyId || !Number.isInteger(day)) {
+    throw new HttpsError('invalid-argument', 'hobbyId and day are required');
+  }
+
+  const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+  const journeySnap = await journeyRef.get();
+  if (!journeySnap.exists) {
+    throw new HttpsError('not-found', 'Journey not found');
+  }
+  const journey = journeySnap.data();
+
+  const completedDays = journey.completedDays ?? [];
+  if (completedDays.includes(day)) {
+    return { alreadyCompleted: true };
+  }
+
+  const newStreak = calculateNewStreak(journey.lastActivityAt, journey.streak ?? 0);
+  const newCompletedDays = [...completedDays, day];
+  const { milestones: newMilestones, newlyEarned } = calculateMilestones({
+    existingMilestones: journey.milestones ?? [],
+    completedDaysCount: newCompletedDays.length,
+    streak: newStreak,
+  });
+
+  await journeyRef.update({
+    currentDay: day + 1,
+    lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
+    streak: newStreak,
+    longestStreak: Math.max(newStreak, journey.longestStreak ?? 0),
+    completedDays: newCompletedDays,
+    milestones: newMilestones,
+  });
+
+  if (photoURL) {
+    await journeyRef.collection('photos').doc(String(day)).set({
+      day,
+      photoURL,
+      capturedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  return {
+    streak: newStreak,
+    milestones: newMilestones,
+    newMilestones: newlyEarned,
+    nextDay: day + 1,
+  };
+});
+
+// ─── AI: Weekly plan for a journey ────────────────────────────────────────
+exports.getWeeklyPlan = onCall(
+  { secrets: ['GEMINI_API_KEY'] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const uid = request.auth.uid;
+    const { hobbyId, currentDay } = request.data ?? {};
+    if (!hobbyId || !Number.isInteger(currentDay)) {
+      throw new HttpsError('invalid-argument', 'hobbyId and currentDay are required');
+    }
+
+    const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+    const journeySnap = await journeyRef.get();
+    if (!journeySnap.exists) {
+      throw new HttpsError('not-found', 'Journey not found');
+    }
+    const journey = journeySnap.data();
+
+    const templateSnap = await db.collection('journeyTemplates').doc(hobbyId).get();
+    if (!templateSnap.exists) {
+      throw new HttpsError('not-found', 'Journey template not found');
+    }
+    const template = templateSnap.data();
+
+    const nextSevenDays = (template.days ?? []).filter(
+      (d) => d.day >= currentDay && d.day < currentDay + 7
+    );
+
+    const prompt = `You are a personal hobby coach. Create an encouraging weekly plan for someone on day ${currentDay} of their ${journey.hobbyName} journey.
+
+This week's scheduled tasks:
+${JSON.stringify(nextSevenDays)}
+
+Return ONLY valid JSON:
+{
+  "weekTheme": "Building core fundamentals",
+  "encouragement": "You are making great progress...",
+  "dailyTips": [
+    { "day": 1, "tip": "Focus on..." }
+  ],
+  "weeklyGoal": "By end of this week you will..."
+}`;
+
+    const reply = await callGemini({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      temperature: 0.7,
+      maxOutputTokens: 1500,
+      thinkingBudget: 0,
+    });
+
+    const cleaned = reply.replace(/```json|```/g, '').trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Failed to parse Gemini response as JSON (getWeeklyPlan):', reply);
+      throw new HttpsError('internal', 'Failed to parse weekly plan');
+    }
+  }
+);
+
 // ─── AI: Tutorial Summarization ───────────────────────────────────────────
 exports.summarizeTutorial = onCall(
   { secrets: ['GEMINI_API_KEY'] },

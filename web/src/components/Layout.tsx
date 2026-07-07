@@ -20,6 +20,8 @@ const NAV_LINKS: { path: string; label: string; end?: boolean }[] = [
   { path: '/explore', label: 'Explore', end: true },
   { path: '/quiz', label: 'Discover' },
   { path: '/coach', label: 'Coach' },
+  { path: '/journey', label: 'Journey' },
+  { path: '/', label: 'My Hobbies' },
 ];
 
 const BOTTOM_NAV_ITEMS: {

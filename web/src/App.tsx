@@ -9,6 +9,7 @@ import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
 import { ExplorePage } from './pages/ExplorePage';
 import { HobbyDetailPage } from './pages/HobbyDetailPage';
+import { JourneyPage } from './pages/JourneyPage';
 import { LearningPathPage } from './pages/LearningPathPage';
 import { LessonPage } from './pages/LessonPage';
 import QuizPage from './pages/QuizPage';
@@ -55,6 +56,14 @@ const AppRoutes: React.FC = () => {
               <Route path="/" element={<HomePage />} />
               <Route path="/explore" element={<ExplorePage />} />
               <Route path="/hobby/:id" element={<HobbyDetailPage />} />
+              <Route
+                path="/hobby/:hobbyId/journey"
+                element={
+                  <ProtectedRoute>
+                    <JourneyPage />
+                  </ProtectedRoute>
+                }
+              />
               <Route path="/hobby/:hobbyId/learn" element={<LearningPathPage />} />
               <Route
                 path="/hobby/:hobbyId/learn/:moduleId/:lessonId"

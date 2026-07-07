@@ -4,25 +4,29 @@
 Solo founder. Early MVP. Phase 1 partially live on Vercel (Hobby Explorer + Detail Pages).
 No hard launch deadline. Focus is on quality over speed.
 
-## Active Sprint: Sprint 1
-Build Firebase Auth end-to-end + save hobbies.
+## Active Sprint: Sprint 3 — Retention Engine
 
-### Sprint 1 Goals
-- Backend: Firebase Admin SDK token verification middleware
-- Backend: User profile creation in Firestore on first login
-- Backend: Save/unsave hobby endpoints (POST/DELETE /api/hobbies/:id/save)
-- Frontend (web): Login + Signup screens
-- Frontend (web): Auth state in Redux (user slice)
-- Frontend (web): Save hobby button wired to backend
-- Firestore collections: users, savedHobbies
+### Sprint 3 Goals
+- 365-day hobby journey with daily progressive tasks
+- Streak tracking per user per hobby in Firestore
+- Weekly milestone badges
+- Comeback challenge after missed days
+- Progress photo timeline (Firebase Storage)
+- My Hobbies dashboard — streaks, journeys, saved hobbies
+- Personalized AI weekly plans via Gemini Cloud Function
+- Floating Coach widget on hobby detail pages
+- Tutorial summarization UI
+- Beginner win notifications
 
-### Sprint 1 Rules
-- Do NOT build community features, the map, or payments yet
-- Do NOT add micro-frontend complexity — single web/ React+Vite app only
-- Database: Firestore only — no MongoDB, no Mongoose
-- Auth: Firebase Auth only — no custom JWT issuing
+### Sprint 3 Rules
+- Do NOT build Community Circles yet → Sprint 4
+- Do NOT build the Hobby Map yet → Sprint 4
+- Do NOT build payments → Sprint 6
+- Seed journey content for 3 pilot hobbies only first:
+  Photography, Painting, Pottery
+- All new Cloud Functions use v2 SDK (firebase-functions/v2/https)
+- All new Firestore writes go under users/{uid}/journeys/{hobbyId}/
 
----
 
 ## Roadmap Overview
 
