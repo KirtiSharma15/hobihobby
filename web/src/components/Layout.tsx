@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { Sparkles, Compass, MessageCircle, Heart } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Sparkles, Compass, MessageCircle, Heart, MapPin } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppSelector } from '@/hooks/useAppDispatch';
 import { FeedbackModal } from './FeedbackModal';
@@ -19,8 +19,9 @@ interface LayoutProps {
 const NAV_LINKS: { path: string; label: string; end?: boolean }[] = [
   { path: '/explore', label: 'Explore', end: true },
   { path: '/quiz', label: 'Discover' },
+  { path: '/map', label: 'Map 📍' },
   { path: '/coach', label: 'Coach' },
-  { path: '/journey', label: 'Journey' },
+  { path: '/community', label: 'Community' },
   { path: '/', label: 'My Hobbies' },
 ];
 
@@ -32,6 +33,7 @@ const BOTTOM_NAV_ITEMS: {
 }[] = [
   { path: '/explore', label: 'Explore', icon: <Compass className="h-5 w-5" />, end: true },
   { path: '/quiz', label: 'Discover', icon: <Sparkles className="h-5 w-5" /> },
+  { path: '/map', label: 'Map 📍', icon: <MapPin className="h-5 w-5" /> },
   { path: '/', label: 'My Hobbies', icon: <Heart className="h-5 w-5" />, end: true },
   { path: '/coach', label: 'Coach', icon: <MessageCircle className="h-5 w-5" /> },
 ];
@@ -41,6 +43,37 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     'text-sm transition-colors duration-200',
     isActive ? 'font-semibold text-terracotta' : 'font-medium text-taupe hover:text-ink'
   );
+
+/**
+ * "Journey" has no standalone route — journeys are per-hobby
+ * (`/hobby/:hobbyId/journey`). Resolve to the most recently active journey,
+ * or send the user to "My Hobbies" to start one if they have none yet.
+ */
+const JourneyNavLink: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeJourneys = useAppSelector((state) => state.journey.activeJourneys);
+
+  const isActive = location.pathname.endsWith('/journey');
+
+  const handleClick = () => {
+    const journeys = Object.values(activeJourneys);
+    if (journeys.length === 0) {
+      navigate('/');
+      return;
+    }
+    const mostRecent = journeys.reduce((latest, journey) =>
+      journey.lastActivityAt > latest.lastActivityAt ? journey : latest
+    );
+    navigate(`/hobby/${mostRecent.hobbyId}/journey`);
+  };
+
+  return (
+    <button type="button" onClick={handleClick} className={navLinkClass({ isActive })}>
+      Journey
+    </button>
+  );
+};
 
 const bottomNavLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
@@ -63,11 +96,23 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Link>
 
           <div className="hidden items-center gap-8 md:flex">
-            {NAV_LINKS.map((link) => (
-              <NavLink key={link.path} to={link.path} end={link.end} className={navLinkClass}>
-                {link.label}
-              </NavLink>
-            ))}
+            {NAV_LINKS.map((link) => {
+              if (link.path === '/coach') {
+                return (
+                  <React.Fragment key={link.path}>
+                    <NavLink to={link.path} end={link.end} className={navLinkClass}>
+                      {link.label}
+                    </NavLink>
+                    <JourneyNavLink />
+                  </React.Fragment>
+                );
+              }
+              return (
+                <NavLink key={link.path} to={link.path} end={link.end} className={navLinkClass}>
+                  {link.label}
+                </NavLink>
+              );
+            })}
           </div>
 
           {isAuthenticated && profile?.photoURL ? (

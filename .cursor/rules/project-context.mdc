@@ -9,18 +9,24 @@ alwaysApply: true
 Solo founder, early MVP. Live on Firebase Hosting at hobihobby.com.
 Quality over speed. No hard launch deadline.
 
-## Active Sprint: Sprint 2 — AI Hook
+## Active Sprint: Sprint 4 — Local Discovery
 
-### Sprint 2 Scope
-- AI Hobby Discovery Quiz — 7 questions → Gemini → ranked recommendations
-- AI Hobby Coach — WhatsApp-style chat via `hobbyCoach` Cloud Function
-- Tutorial summarization — `summarizeTutorial` Cloud Function (backend only, no UI)
+### Sprint 4 Scope
+- Hobby Map — Google Maps + Places API
+- Nearby classes, workshops, stores, clubs — `findNearbyPlaces` Cloud Function (done)
+- Hobby events feed
+- Hobby compatibility matching — "find someone at your level nearby"
+- Community Circles — groups by hobby + skill level + location
 
-### Sprint 2 Rules
-- Do NOT build community features, maps, payments, or streaks yet
-- All AI calls go through Firebase Cloud Functions — never expose API keys in frontend
+### Sprint 4 Rules
+- Do NOT build mood-based recommendations yet → Sprint 5
+- Do NOT build payments/monetization yet → Sprint 6
+- UAE: start with Abu Dhabi only — nail local data quality before expanding to Dubai
+- Gate Community Circles behind a minimum local user count — empty groups kill momentum
+- All AI/API calls go through Firebase Cloud Functions — never expose API keys in frontend
 - Cloud Functions use the **v2 SDK** (`firebase-functions/v2/https`)
 - AI model: `gemini-2.5-flash` for quiz + coach, `gemini-2.5-flash-lite` for summarization
+- Google Maps/Places key stored as a Cloud Functions secret (`GOOGLE_MAPS_API_KEY`)
 
 ## Architecture Decisions (Locked)
 - **Firebase-native only.** No Express backend in production, no MongoDB, no Mongoose. Firestore is the single source of truth.
@@ -39,6 +45,7 @@ Quality over speed. No hard launch deadline.
 | Auth | Firebase Auth (Google provider, redirect flow) |
 | Hosting | Firebase Hosting |
 | AI | Google Gemini API (`gemini-2.5-flash`) |
+| Maps | Google Maps + Places API (`findNearbyPlaces` Cloud Function) |
 
 ## Key Directories
 - `web/` — React + Vite web app (the active frontend)
@@ -73,6 +80,8 @@ Quality over speed. No hard launch deadline.
 5. Firestore rules `mismatched input '{'` → stray character at top; select all and repaste
 6. Cloud Function 500 with `AxiosError 404` from `generativelanguage.googleapis.com` → the hardcoded Gemini model was retired (e.g. `gemini-2.0-flash` shut down June 1, 2026); check the [Gemini API changelog](https://ai.google.dev/gemini-api/docs/changelog) and update `GEMINI_MODEL` in `functions/index.js`
 7. Cloud Function 500 "Failed to parse ... as JSON" → Gemini 2.5 models think by default and thinking tokens are drawn from `maxOutputTokens`, truncating the JSON before it closes; set `generationConfig.thinkingConfig.thinkingBudget: 0` to disable thinking for structured-output calls
+8. `findNearbyPlaces` 500 or `REQUEST_DENIED` from Places API → `GOOGLE_MAPS_API_KEY` secret not set (`firebase functions:secrets:set GOOGLE_MAPS_API_KEY`) or the Places API isn't enabled for the project in Google Cloud Console
+9. Google Sign-In redirect silently fails / bounces back to `/login` → two distinct causes, same symptom: (a) `hobihobby.com` is blocked by Etisalat (misclassified as "Pornography Web Sites", confirmed via `curl` — HTTPS resets, HTTP returns a `safe.etisalat.ae` page) as of Jul 2026; (b) **`VITE_FIREBASE_AUTH_DOMAIN` must match the exact origin the app is hosted on** — pointing it at a *different* Firebase domain than the hosting origin (e.g. `authDomain=...firebaseapp.com` while hosted at `...web.app`) breaks the redirect's cross-origin storage handshake in browsers with third-party storage partitioning (Safari ITP, Brave, Chrome partitioning, Firefox ETP). Fix: set `authDomain` to whichever domain is actually serving the app (currently `hobihobby-65e1a.web.app`). Submit a reclassification/appeal request to Etisalat before relying on `hobihobby.com` for anything user-facing again
 
 ## Decision Log
 | Decision | Reasoning |
@@ -83,9 +92,10 @@ Quality over speed. No hard launch deadline.
 | No micro-frontends | Zero benefit for solo founder |
 | Cloud Functions v2 | v1 deprecated and broke deployment |
 | Art & Craft vertical first | Low barrier, tangible outputs, calming — matches target user |
+| Google Places Text Search + Details (not Nearby Search) | Text Search lets us combine hobby name + intent (class/store/event) in one query string; Details call is limited to the nearest 10 results (post-distance-sort) to cap billed usage |
 
 ## Do NOT
-- Suggest features outside Sprint 2 scope
+- Suggest features outside Sprint 4 scope (no mood-based recs, no payments/monetization)
 - Add MongoDB/Mongoose models
 - Use `functions.runWith` (v1 API — deprecated)
 - Put API keys in frontend code or `.env` files committed to git

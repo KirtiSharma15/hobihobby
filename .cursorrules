@@ -1,50 +1,45 @@
 # HobiHobby — Current Build Context
 
 ## Product Stage
-Solo founder. Early MVP. Phase 1 partially live on Vercel (Hobby Explorer + Detail Pages).
+Solo founder. Early MVP. Live on Firebase Hosting at hobihobby.com.
 No hard launch deadline. Focus is on quality over speed.
 
-## Active Sprint: Sprint 3 — Retention Engine
+## Active Sprint: Sprint 4 — Local Discovery
 
-### Sprint 3 Goals
-- 365-day hobby journey with daily progressive tasks
-- Streak tracking per user per hobby in Firestore
-- Weekly milestone badges
-- Comeback challenge after missed days
-- Progress photo timeline (Firebase Storage)
-- My Hobbies dashboard — streaks, journeys, saved hobbies
-- Personalized AI weekly plans via Gemini Cloud Function
-- Floating Coach widget on hobby detail pages
-- Tutorial summarization UI
-- Beginner win notifications
+### Sprint 4 Goals
+- Hobby Map — Google Maps + Places API
+- Nearby classes, workshops, stores, clubs (`findNearbyPlaces` Cloud Function — done)
+- Hobby events feed
+- Hobby compatibility matching — "find someone at your level nearby"
+- Community Circles — groups by hobby + skill level + location
 
-### Sprint 3 Rules
-- Do NOT build Community Circles yet → Sprint 4
-- Do NOT build the Hobby Map yet → Sprint 4
-- Do NOT build payments → Sprint 6
-- Seed journey content for 3 pilot hobbies only first:
-  Photography, Painting, Pottery
+### Sprint 4 Rules
+- Do NOT build mood-based recommendations yet → Sprint 5
+- Do NOT build payments/monetization → Sprint 6
+- UAE: start with Abu Dhabi only — nail local data quality before expanding to Dubai
+- Gate Community Circles behind minimum local user count — empty groups kill momentum
 - All new Cloud Functions use v2 SDK (firebase-functions/v2/https)
-- All new Firestore writes go under users/{uid}/journeys/{hobbyId}/
+- Google Maps/Places API key stored as a Cloud Functions secret (GOOGLE_MAPS_API_KEY) —
+  never expose it in frontend code or commit it
 
 
 ## Roadmap Overview
 
-### Phase 1 — Foundation (current)
+### Phase 1 — Foundation ✅ complete
 Auth, user profiles, save hobbies, onboarding flow
 
-### Phase 2 — AI Hook
-AI Hobby Discovery Quiz → OpenAI → ranked recommendations with match score + reasoning
-AI Hobby Coach (chat interface, GPT-4 backend)
+### Phase 2 — AI Hook ✅ complete
+AI Hobby Discovery Quiz → Gemini → ranked recommendations with match score + reasoning
+AI Hobby Coach (chat interface, Gemini backend)
 Tutorial summarization into beginner checklists
 
-### Phase 3 — Retention Engine
+### Phase 3 — Retention Engine ✅ complete
 365-day hobby journey (progressive daily tasks per hobby)
 Streak tracking, weekly milestones, comeback challenges
 Progress photo timeline
 Personalized AI weekly plans
 
-### Phase 4 — Local Discovery
+### Phase 4 — Local Discovery (current)
 Hobby Map (Google Maps + Places API)
 Nearby classes, workshops, hobby stores
 Community Circles (small local groups by hobby + location)
@@ -66,18 +61,18 @@ Social sharing (progress cards, milestone shares)
 - Monorepo: backend/ + web/ + mobile/ + shared/
 - NO micro-frontends — single web/ React+Vite app
 - Database: Firebase Firestore only (no MongoDB/Mongoose)
-- Auth: Firebase Auth + Firebase Admin SDK on backend
+- Auth: Firebase Auth (Google provider, redirect flow)
 - State: Redux Toolkit + Redux Persist
-- AI: OpenAI API (Phase 2+) — not yet active
+- AI: Gemini API via Cloud Functions (active since Sprint 2)
 - Payments: Stripe (Phase 5) — not yet active
-- Maps: Google Maps + Places API (Phase 4) — not yet active
+- Maps: Google Maps + Places API (Phase 4) — active, `findNearbyPlaces` Cloud Function live
 
 ## Tech Stack (active)
 - Frontend: React 18 + Vite + TypeScript + TailwindCSS + Redux Toolkit
-- Backend: Express.js + Node.js + Firebase Admin SDK
+- Backend: Firebase Cloud Functions (v2 SDK) + Node.js
 - Database: Firebase Firestore
 - Auth: Firebase Auth
-- Hosting: Vercel (web), TBD (backend)
+- Hosting: Firebase Hosting (hobihobby.com)
 
 ## Design System (Artisan Theme — Locked)
 
@@ -131,11 +126,11 @@ All UI must follow this design system exactly. Never deviate.
 - All pages must work on mobile AND desktop
 - Import Plus Jakarta Sans, not system fonts
 
-## AI Stack (Sprint 2+)
-- Model: Gemma 4 26B A4B (via Gemini API) for coach + quiz
-- Model: Gemma 4 E4B for tutorial summarization
-- API: api.google.dev (Gemini API endpoint)
-- Key: stored in Firebase Cloud Functions environment (never in frontend)
+## AI Stack (active since Sprint 2)
+- Model: `gemini-2.5-flash` for coach + quiz + weekly plans
+- Model: `gemini-2.5-flash-lite` for tutorial summarization
+- API: generativelanguage.googleapis.com (Gemini API)
+- Key: stored in Firebase Cloud Functions secrets (GEMINI_API_KEY, never in frontend)
 - All AI calls: routed through Cloud Functions (never direct from frontend)
 ---
 
@@ -148,8 +143,8 @@ All UI must follow this design system exactly. Never deviate.
 
 ## Project Overview
 HobiHobby is an AI-powered cross-platform hobby discovery application built as a monorepo with:
-- **Backend**: Express.js API with Firebase, Stripe, MongoDB
-- **Mobile**: React Native (Expo) with TypeScript
+- **Backend**: Firebase Cloud Functions (v2 SDK) with Firestore, Firebase Auth, Gemini API, Google Places API. (Legacy `backend/` Express server exists for local dev mocking only — not production.)
+- **Mobile**: React Native (Expo) with TypeScript — Sprint 7, not active yet
 - **Web**: React + Vite with TypeScript and TailwindCSS
 - **Shared**: Shared utilities, types, and Redux slices
 

@@ -195,8 +195,23 @@ exports.hobbyCoach = onCall(
     const { messages, hobbyContext } = request.data ?? {};
 
     const systemText = hobbyContext
-      ? `You are an enthusiastic hobby coach on HobiHobby helping a user learn ${hobbyContext}. Keep responses concise, friendly and actionable. Max 3 paragraphs.`
-      : `You are an enthusiastic hobby coach on HobiHobby. Help users discover and learn hobbies. Never use placeholder text like [hobby] — always speak naturally and ask the user which hobby they are exploring if you don't know. Keep responses concise, friendly and actionable. Max 3 paragraphs.`;
+      ? `You are an expert hobby coach on HobiHobby 
+     specialising in ${hobbyContext}.
+     
+     IMPORTANT: You already know the user is learning 
+     ${hobbyContext}. Never ask them what hobby they want 
+     to explore — you already know.
+     
+     When they ask "where do I start" or similar, give 
+     specific actionable steps for ${hobbyContext} directly.
+     
+     Be encouraging, specific, and practical.
+     Max 3 short paragraphs.`
+      : `You are an enthusiastic hobby coach on HobiHobby.
+     Help users discover and learn hobbies.
+     Ask them what hobby they want to explore if they 
+     haven't told you yet, then give specific advice.
+     Max 3 short paragraphs.`;
 
     const contents = buildGeminiContents(messages);
     const reply = await callGemini({
@@ -472,5 +487,142 @@ Tutorial content: ${tutorialText.slice(0, 3000)}`;
       console.error('Failed to parse Gemini response as JSON (summarizeTutorial):', raw);
       throw new HttpsError('internal', 'Failed to parse tutorial summary');
     }
+  }
+);
+
+// ─── Local Discovery: Nearby places search ───────────────────────────────
+function getDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function buildPlacesSearchQuery(hobbyName, type) {
+  switch (type) {
+    case 'classes':
+      return `${hobbyName} class OR workshop OR lesson`;
+    case 'stores':
+      return `${hobbyName} store OR supplies OR shop`;
+    case 'events':
+      return `${hobbyName} event OR meetup OR club`;
+    case 'all':
+    default:
+      return `${hobbyName} class OR workshop OR store`;
+  }
+}
+
+exports.findNearbyPlaces = onCall(
+  { secrets: ['GOOGLE_MAPS_API_KEY'] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const { hobbyId, hobbyName, latitude, longitude, radius = 5000, type = 'all' } = request.data ?? {};
+
+    if (!hobbyId || !hobbyName || typeof latitude !== 'number' || typeof longitude !== 'number') {
+      throw new HttpsError('invalid-argument', 'hobbyId, hobbyName, latitude and longitude are required');
+    }
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!apiKey) {
+      throw new HttpsError('failed-precondition', 'GOOGLE_MAPS_API_KEY is not configured');
+    }
+
+    const query = buildPlacesSearchQuery(hobbyName, type);
+
+    let searchResults;
+    try {
+      const searchResponse = await axios.get(
+        'https://maps.googleapis.com/maps/api/place/textsearch/json',
+        {
+          params: {
+            query,
+            location: `${latitude},${longitude}`,
+            radius,
+            key: apiKey,
+          },
+        }
+      );
+
+      if (searchResponse.data.status !== 'OK' && searchResponse.data.status !== 'ZERO_RESULTS') {
+        throw new HttpsError('internal', `Places search failed: ${searchResponse.data.status}`);
+      }
+
+      searchResults = searchResponse.data.results ?? [];
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      const message = error.response?.data?.error_message || error.message || 'Google Places request failed';
+      console.error('Google Places API error (findNearbyPlaces search):', message);
+      throw new HttpsError('internal', message);
+    }
+
+    // Rank by distance before hitting the Details API so we only spend
+    // the (billed) Details call quota on the 10 places we'll actually return.
+    const nearest = searchResults
+      .filter((result) => result.geometry?.location)
+      .map((result) => ({
+        result,
+        distance: getDistanceKm(
+          latitude,
+          longitude,
+          result.geometry.location.lat,
+          result.geometry.location.lng
+        ),
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 10);
+
+    const places = await Promise.all(
+      nearest.map(async ({ result, distance }) => {
+        let details = {};
+        try {
+          const detailsResponse = await axios.get(
+            'https://maps.googleapis.com/maps/api/place/details/json',
+            {
+              params: {
+                place_id: result.place_id,
+                fields:
+                  'name,formatted_address,geometry,rating,opening_hours,formatted_phone_number,website,price_level,photos,types',
+                key: apiKey,
+              },
+            }
+          );
+          details = detailsResponse.data.result ?? {};
+        } catch (error) {
+          console.error(
+            `Google Places API error (findNearbyPlaces details for ${result.place_id}):`,
+            error.message
+          );
+        }
+
+        const merged = { ...result, ...details };
+
+        return {
+          placeId: result.place_id,
+          name: merged.name ?? '',
+          address: merged.formatted_address ?? '',
+          latitude: merged.geometry?.location?.lat ?? null,
+          longitude: merged.geometry?.location?.lng ?? null,
+          rating: merged.rating ?? null,
+          totalRatings: merged.user_ratings_total ?? 0,
+          isOpen: merged.opening_hours?.open_now ?? null,
+          phone: merged.formatted_phone_number ?? '',
+          website: merged.website ?? '',
+          priceLevel: merged.price_level ?? null,
+          types: merged.types ?? [],
+          photoReference: merged.photos?.[0]?.photo_reference ?? null,
+          distance: Math.round(distance * 100) / 100,
+        };
+      })
+    );
+
+    places.sort((a, b) => a.distance - b.distance);
+
+    return { places };
   }
 );

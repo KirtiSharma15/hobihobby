@@ -128,7 +128,7 @@ export const useAuth = (options: UseAuthOptions = {}): UseAuthReturn => {
       if (code === 'auth/unauthorized-domain') {
         dispatch(
           setError(
-            'Sign-in is not enabled for this domain. Add hobihobby.com to Firebase Auth authorized domains.'
+            `Sign-in is not enabled for this domain. Add ${window.location.hostname} to Firebase Auth authorized domains.`
           )
         );
       } else {

@@ -696,9 +696,10 @@ export const HobbyDetailPage: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/0 to-black/10" />
 
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+            {/* Fixed destination, not navigate(-1) — this page can be a deep-link entry point with no reliable prior history. */}
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/explore')}
               aria-label="Go back"
               className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/90 text-ink shadow-md transition-colors hover:bg-surface"
             >

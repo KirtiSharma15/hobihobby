@@ -10,6 +10,8 @@ import { HomePage } from './pages/HomePage';
 import { ExplorePage } from './pages/ExplorePage';
 import { HobbyDetailPage } from './pages/HobbyDetailPage';
 import { JourneyPage } from './pages/JourneyPage';
+import { MapPage } from './pages/MapPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { LearningPathPage } from './pages/LearningPathPage';
 import { LessonPage } from './pages/LessonPage';
 import QuizPage from './pages/QuizPage';
@@ -64,6 +66,9 @@ const AppRoutes: React.FC = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/map" element={<MapPage />} />
+              <Route path="/hobby/:hobbyId/map" element={<MapPage />} />
+              <Route path="/community" element={<CommunityPage />} />
               <Route path="/hobby/:hobbyId/learn" element={<LearningPathPage />} />
               <Route
                 path="/hobby/:hobbyId/learn/:moduleId/:lessonId"

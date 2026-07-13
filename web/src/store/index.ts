@@ -4,6 +4,7 @@ import { userReducer } from './slices/userSlice';
 import { hobbiesReducer } from './slices/hobbiesSlice';
 import { aiReducer } from './slices/aiSlice';
 import { journeyReducer } from './slices/journeySlice';
+import { mapReducer } from './slices/mapSlice';
 
 export { setUser, clearUser, setLoading, setError } from './slices/userSlice';
 export { setSavedHobbies, addSavedHobby, removeSavedHobby } from './slices/hobbiesSlice';
@@ -14,6 +15,7 @@ export const store = configureStore({
     hobbies: hobbiesReducer,
     ai: aiReducer,
     journey: journeyReducer,
+    map: mapReducer,
   },
 });
 

@@ -85,7 +85,7 @@ export const LearningPathPage: React.FC = () => {
         <div className="text-center">
           <p className="text-xl text-gray-600 mb-4">{error || 'Learning path not found'}</p>
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(hobbyId ? `/hobby/${hobbyId}` : '/explore')}
             className="text-amber-600 hover:text-amber-700"
           >
             ← Go back

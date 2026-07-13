@@ -417,8 +417,8 @@ Font: **Plus Jakarta Sans**
 |---|---|---|
 | 1 | Auth, save hobbies, Firebase hosting | ✅ Complete |
 | 2 | AI Discovery Quiz + AI Hobby Coach | ✅ Complete |
-| 3 | 365-day journey, streaks, retention | 🔄 In Progress |
-| 4 | Hobby Map, local discovery, Community Circles | 🔲 Not started |
+| 3 | 365-day journey, streaks, retention | ✅ Complete |
+| 4 | Hobby Map, local discovery, Community Circles | 🔄 In Progress |
 | 5 | Mood-based recommendations + MCP Coach | 🔲 Not started |
 | 6 | Monetization — Stripe, freemium, affiliate | 🔲 Not started |
 | 7 | React Native + Hindi + Razorpay + India launch | 🔲 Not started |
@@ -725,6 +725,17 @@ Stray character at line 1 of `firestore.rules`. Fix: select all → delete → r
 
 ### Custom domain ACME challenge failed (404)
 Old registrar A record (`216.198.79.1`) conflicted with Firebase's A record (`199.36.158.100`). Delete old A records from DNS provider, then re-verify in Firebase Console → Hosting.
+
+### hobihobby.com blocked by Etisalat (Jul 2026) — Google Sign-In silently fails
+DNS for `hobihobby.com` correctly points at Firebase's `199.36.158.100`, but Etisalat (major UAE ISP — our launch market) is blocking the domain: HTTPS connections get reset mid-handshake, and plain HTTP returns a `safe.etisalat.ae` interstitial classifying it as **"Pornography Web Sites"**. Confirmed via `curl` — the two default Firebase domains (`hobihobby-65e1a.web.app`, `hobihobby-65e1a.firebaseapp.com`) load the real app fine; only the custom domain is blocked.
+
+Impact: since `VITE_FIREBASE_AUTH_DOMAIN` was set to `hobihobby.com`, the Google Sign-In redirect flow bounced through the blocked domain's `/__/auth/handler` and never completed — users landed back on `/login` with no error. It also means the **entire site is unreachable at `hobihobby.com` for Etisalat subscribers**, not just auth.
+
+Fix attempt 1 (incomplete): `VITE_FIREBASE_AUTH_DOMAIN` switched to the default `hobihobby-65e1a.firebaseapp.com`. This avoided the ISP block but introduced a *new* cross-origin bug: the app is hosted at `hobihobby-65e1a.web.app`, a different origin than `firebaseapp.com`. `signInWithRedirect` needs a cross-origin iframe/storage handshake between the app's origin and `authDomain` to relay the result back, and browsers with third-party storage partitioning (Safari ITP, Brave, Chrome's storage partitioning, Firefox ETP) silently drop that handshake — same failure mode (`/login` with no user, no error), just a different cause.
+
+Fix applied: `VITE_FIREBASE_AUTH_DOMAIN` set to `hobihobby-65e1a.web.app` — the exact origin the app is actually served from. This keeps `authDomain` same-origin with the app (no cross-origin storage handshake needed) while still avoiding the blocked `hobihobby.com`. **Rule of thumb: `authDomain` should always match the domain the app is hosted on, not just any authorized domain.**
+
+Still needed: submit a URL reclassification/appeal request to Etisalat (and check `du`, the other major UAE ISP, isn't doing the same) before pointing users at `hobihobby.com` again or re-pointing `authDomain` back to it — and if `hobihobby.com` is restored, `authDomain` should be repointed to `hobihobby.com` too, so it stays same-origin with hosting.
 
 ### Legacy Express backend / MongoDB
 Original HLD references Express + MongoDB + Mongoose. Superseded. Do not resurrect.

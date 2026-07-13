@@ -81,9 +81,15 @@ const CoachChat: React.FC<Props> = ({ hobbyContext }) => {
     <div className="flex h-full flex-col bg-surface">
       {/* Header */}
       <div className="flex flex-shrink-0 items-center gap-3 border-b border-border bg-surface px-4 py-3">
+        {/*
+          Navigate to a fixed route rather than navigate(-1): browser history
+          is unreliable here because signInWithRedirect leaves and re-enters
+          the tab, and Coach is also reachable directly from several entry
+          points (nav bar, home, quiz results) with no guaranteed prior page.
+        */}
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/')}
           aria-label="Go back"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-ink transition-colors hover:bg-border/50 md:hidden"
         >

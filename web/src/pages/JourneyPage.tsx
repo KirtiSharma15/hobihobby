@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Lock, Trophy, Loader2 } from 'lucide-react';
 import { useJourney } from '@/hooks/useJourney';
+import CoachChat from '@/components/coach/CoachChat';
 import { cn } from '@/utils/cn';
 
 const MILESTONE_LABELS: Record<string, string> = {
@@ -119,6 +120,11 @@ export const JourneyPage: React.FC = () => {
   const todaysTask = currentTemplate?.find((d) => d.day === currentDay) ?? null;
   const upcomingDays =
     currentTemplate?.filter((d) => d.day > currentDay && d.day <= currentDay + 3) ?? [];
+
+  const hobbyContext = journey
+    ? `${journey.hobbyName}, Day ${journey.currentDay} of 365. 
+Today's task: ${todaysTask?.title}`
+    : undefined;
 
   const handleComplete = async () => {
     if (!journey || isCompletedToday) return;
@@ -234,6 +240,13 @@ export const JourneyPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Journey-aware coach */}
+        {hobbyContext && (
+          <div className="mt-6 flex h-[420px] flex-col overflow-hidden rounded-2xl bg-surface shadow-sm">
+            <CoachChat hobbyContext={hobbyContext} />
           </div>
         )}
       </div>
