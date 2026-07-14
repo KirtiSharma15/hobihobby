@@ -626,3 +626,93 @@ exports.findNearbyPlaces = onCall(
     return { places };
   }
 );
+
+// ─── AI: Mood-based recommendations (Sprint 5) ────────────────────────────
+exports.getMoodRecommendations = onCall(
+  { secrets: ['GEMINI_API_KEY'] },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Must be logged in');
+    }
+
+    const {
+      mood,
+      intensity = 'medium',
+      availableTime = 30,
+      savedHobbies,
+      activeJourneys,
+    } = request.data ?? {};
+
+    if (!mood || typeof mood !== 'string') {
+      throw new HttpsError('invalid-argument', 'mood is required');
+    }
+
+    const prompt = `You are a mood-based hobby recommendation 
+engine for HobiHobby.
+
+User's current mood: "${mood}" (intensity: ${intensity})
+Available time right now: ${availableTime} minutes
+Their saved hobbies: ${JSON.stringify(savedHobbies || [])}
+Their active journeys: ${JSON.stringify(activeJourneys || [])}
+
+Based on this mood and context, recommend 3 hobby activities 
+they can do RIGHT NOW.
+
+Rules:
+- Prefer activities from their saved hobbies or active journeys
+- Match the activity duration to their available time
+- Match the energy level to their mood intensity
+- If they have an active journey suggest the next task in it
+- Be specific — not "do some painting" but 
+  "spend 20 mins sketching simple shapes from your window"
+
+Return ONLY valid JSON with no markdown:
+{
+  "moodInsight": "One sentence about why this mood calls for these activities",
+  "recommendations": [
+    {
+      "hobbyName": "Watercolor Painting",
+      "activity": "Specific activity to do right now",
+      "duration": "20 mins",
+      "reason": "Why this suits your current mood",
+      "isFromJourney": true,
+      "journeyDay": 5,
+      "energyLevel": "low",
+      "emoji": "🎨"
+    }
+  ]
+}`;
+
+    let response;
+    try {
+      response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 1000,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }
+      );
+    } catch (error) {
+      const message = error.response?.data?.error?.message || error.message || 'Gemini API request failed';
+      console.error('Gemini API error (getMoodRecommendations):', message, error.response?.data);
+      throw new HttpsError('internal', message);
+    }
+
+    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!raw) {
+      throw new HttpsError('internal', 'No response from Gemini');
+    }
+
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch (error) {
+      console.error('Failed to parse Gemini response as JSON (getMoodRecommendations):', raw);
+      throw new HttpsError('internal', 'Failed to generate recommendations');
+    }
+  }
+);

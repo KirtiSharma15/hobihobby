@@ -5,9 +5,20 @@ import { hobbiesReducer } from './slices/hobbiesSlice';
 import { aiReducer } from './slices/aiSlice';
 import { journeyReducer } from './slices/journeySlice';
 import { mapReducer } from './slices/mapSlice';
+import { moodReducer } from './slices/moodSlice';
 
 export { setUser, clearUser, setLoading, setError } from './slices/userSlice';
-export { setSavedHobbies, addSavedHobby, removeSavedHobby } from './slices/hobbiesSlice';
+export {
+  setCatalog,
+  setCurrentHobby,
+  setCatalogLoading,
+  setCatalogError,
+  setSavedHobbies,
+  addSavedHobby,
+  removeSavedHobby,
+} from './slices/hobbiesSlice';
+export type { Hobby } from './slices/hobbiesSlice';
+
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +27,7 @@ export const store = configureStore({
     ai: aiReducer,
     journey: journeyReducer,
     map: mapReducer,
+    mood: moodReducer,
   },
 });
 

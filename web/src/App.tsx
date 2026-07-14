@@ -17,6 +17,7 @@ import { LessonPage } from './pages/LessonPage';
 import QuizPage from './pages/QuizPage';
 import QuizResultsPage from './pages/QuizResultsPage';
 import CoachPage from './pages/CoachPage';
+import MoodPage from './pages/MoodPage';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -88,6 +89,14 @@ const AppRoutes: React.FC = () => {
                 element={
                   <ProtectedRoute>
                     <CoachPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/mood"
+                element={
+                  <ProtectedRoute>
+                    <MoodPage />
                   </ProtectedRoute>
                 }
               />

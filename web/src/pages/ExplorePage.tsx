@@ -7,6 +7,8 @@
  * Redux. Mobile renders a compact, scrollable feed; desktop renders a hero
  * banner plus a two-column layout with an AI match / stats / trending
  * sidebar.
+ *
+ * Hobby catalog is loaded from Firestore via useHobbies.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -14,12 +16,14 @@ import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, Bell, Flame, Heart, Clock, Sparkles } from 'lucide-react';
 import { useAppSelector } from '@/hooks/useAppDispatch';
 import { useSaveHobby } from '@/hooks/useSaveHobby';
+import { useHobbies } from '@/hooks/useHobbies';
 import { getAllProgress } from '@/hooks/useLocalProgress';
 import { getLearningPath, getLesson } from '@/data/learningPaths';
 import { cn } from '@/utils/cn';
 import { showToast } from '@/utils/toast';
 import { trackPageView, trackFilterUse, trackHobbySave, getVisitStreak } from '@/utils/analytics';
 import type { RootState } from '@/store';
+import type { Hobby } from '@/store/slices/hobbiesSlice';
 
 const CATEGORIES = [
   'All',
@@ -35,95 +39,34 @@ const CATEGORIES = [
 
 type Category = (typeof CATEGORIES)[number];
 
-interface HobbyItem {
-  id: string;
-  title: string;
-  description: string;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  category: Category;
-  imageUrl: string;
-  timePerWeek: string;
-  cost: string;
-  rating: number;
-  tags: string[];
-}
+/** Maps explore chips to Firestore `category` values from the seeded catalog. */
+const CATEGORY_FILTER_MAP: Record<Exclude<Category, 'All'>, string[]> = {
+  Art: ['Art & Craft'],
+  Music: ['Music'],
+  Sport: ['Fitness'],
+  Tech: [],
+  Nature: ['Nature'],
+  Food: [],
+  Writing: ['Mind Games'],
+  Outdoors: ['Nature'],
+};
 
-// Art & Craft hobbies data (matches backend)
-const ART_CRAFT_HOBBIES: HobbyItem[] = [
-  {
-    id: 'watercolor-painting',
-    title: 'Watercolor Painting',
-    description:
-      'Create beautiful, flowing artwork with watercolors. This calming hobby lets you express creativity through soft washes of color.',
-    difficulty: 'beginner',
-    category: 'Art',
-    imageUrl: 'https://images.unsplash.com/photo-1629772451220-8569bfac996f?w=800',
-    timePerWeek: '3 hrs/wk',
-    cost: '$48-88',
-    rating: 4.8,
-    tags: ['creative', 'relaxing', 'art'],
-  },
-  {
-    id: 'acrylic-painting',
-    title: 'Acrylic Painting',
-    description:
-      'Versatile and forgiving, acrylic painting lets you create bold artwork. Great for beginners.',
-    difficulty: 'beginner',
-    category: 'Art',
-    imageUrl: 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800',
-    timePerWeek: '3 hrs/wk',
-    cost: '$40-60',
-    rating: 4.7,
-    tags: ['creative', 'colorful', 'art'],
-  },
-  {
-    id: 'pottery-ceramics',
-    title: 'Pottery & Ceramics',
-    description: 'Shape clay into functional and decorative objects. Tactile and meditative.',
-    difficulty: 'beginner',
-    category: 'Art',
-    imageUrl: 'https://images.unsplash.com/photo-1629380321590-3b3f75d66dec?w=800',
-    timePerWeek: '3 hrs/wk',
-    cost: '$45-80',
-    rating: 4.9,
-    tags: ['creative', 'hands-on', 'craft'],
-  },
-  {
-    id: 'calligraphy',
-    title: 'Calligraphy & Lettering',
-    description: 'Transform words into art with beautiful handwriting. Creative and structured.',
-    difficulty: 'beginner',
-    category: 'Writing',
-    imageUrl: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800',
-    timePerWeek: '2 hrs/wk',
-    cost: '$23-32',
-    rating: 4.6,
-    tags: ['creative', 'precise', 'writing'],
-  },
-  {
-    id: 'hand-lettering',
-    title: 'Hand Lettering',
-    description: 'Draw decorative letters and typography. Develop your own unique style.',
-    difficulty: 'beginner',
-    category: 'Writing',
-    imageUrl: 'https://images.unsplash.com/photo-1596465786192-04e9dc3e0f6d?w=800',
-    timePerWeek: '2 hrs/wk',
-    cost: '$26-42',
-    rating: 4.7,
-    tags: ['creative', 'typography', 'design'],
-  },
-];
-
-const DIFFICULTY_STYLES: Record<HobbyItem['difficulty'], string> = {
+const DIFFICULTY_STYLES: Record<Hobby['difficulty'], string> = {
   beginner: 'bg-olive/15 text-olive',
   intermediate: 'bg-amber-100 text-amber-700',
   advanced: 'bg-terracotta/15 text-terracotta',
 };
 
-interface ContinueHobby extends HobbyItem {
+interface ContinueHobby extends Hobby {
   percent: number;
   positionLabel: string;
 }
+
+const matchesCategoryChip = (hobby: Hobby, category: Category): boolean => {
+  if (category === 'All') return true;
+  const targets = CATEGORY_FILTER_MAP[category];
+  return targets.some((target) => hobby.category === target);
+};
 
 const SaveHeartButton: React.FC<{ hobbyId: string; className?: string }> = ({
   hobbyId,
@@ -159,13 +102,45 @@ const SaveHeartButton: React.FC<{ hobbyId: string; className?: string }> = ({
   );
 };
 
+const HobbyGridCardSkeleton: React.FC = () => (
+  <div className="overflow-hidden rounded-2xl bg-surface shadow-sm animate-pulse">
+    <div className="h-28 w-full bg-border" />
+    <div className="space-y-2 p-3">
+      <div className="h-3.5 w-3/4 rounded bg-border" />
+      <div className="flex justify-between gap-2">
+        <div className="h-5 w-16 rounded-full bg-border" />
+        <div className="h-3 w-14 rounded bg-border" />
+      </div>
+    </div>
+  </div>
+);
+
+const TrendingHobbyCardSkeleton: React.FC<{ variant?: 'scroll' | 'grid' }> = ({
+  variant = 'scroll',
+}) => (
+  <div
+    className={cn(
+      'overflow-hidden rounded-2xl bg-surface shadow-sm animate-pulse',
+      variant === 'scroll' ? 'w-[170px] shrink-0' : 'w-full'
+    )}
+  >
+    <div className="h-32 w-full bg-border" />
+    <div className="space-y-2 p-3">
+      <div className="h-3.5 w-3/4 rounded bg-border" />
+      <div className="flex justify-between gap-2">
+        <div className="h-5 w-16 rounded-full bg-border" />
+        <div className="h-3 w-14 rounded bg-border" />
+      </div>
+    </div>
+  </div>
+);
+
 const TrendingHobbyCard: React.FC<{
-  hobby: HobbyItem;
+  hobby: Hobby;
   onNavigate: (path: string) => void;
   variant?: 'scroll' | 'grid';
-}> = ({ hobby, onNavigate, variant = 'scroll' }) => {
-  const matchScore = Math.round(hobby.rating * 20);
-
+  matchScore?: number;
+}> = ({ hobby, onNavigate, variant = 'scroll', matchScore = 85 }) => {
   return (
     <div
       onClick={() => onNavigate(`/hobby/${hobby.id}`)}
@@ -174,8 +149,12 @@ const TrendingHobbyCard: React.FC<{
         variant === 'scroll' ? 'w-[170px] shrink-0' : 'w-full'
       )}
     >
-      <div className="relative h-32 w-full overflow-hidden">
-        <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+      <div className="relative h-32 w-full overflow-hidden bg-border">
+        {hobby.imageUrl ? (
+          <img src={hobby.imageUrl} alt={hobby.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-3xl">{hobby.emoji}</div>
+        )}
         <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-olive px-2 py-1 text-[11px] font-semibold text-white">
           <Sparkles className="h-3 w-3" />
           {matchScore}% match
@@ -186,7 +165,7 @@ const TrendingHobbyCard: React.FC<{
         </span>
       </div>
       <div className="p-3">
-        <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.title}</h3>
+        <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.name}</h3>
         <div className="flex items-center justify-between gap-2">
           <span
             className={cn(
@@ -214,13 +193,19 @@ const ContinueHobbyCard: React.FC<{ hobby: ContinueHobby; onNavigate: (path: str
     onClick={() => onNavigate(`/hobby/${hobby.id}/learn`)}
     className="flex w-72 shrink-0 cursor-pointer items-center gap-3 rounded-2xl bg-surface p-3 shadow-sm transition-transform hover:-translate-y-0.5"
   >
-    <img
-      src={hobby.imageUrl}
-      alt={hobby.title}
-      className="h-16 w-16 shrink-0 rounded-xl object-cover"
-    />
+    {hobby.imageUrl ? (
+      <img
+        src={hobby.imageUrl}
+        alt={hobby.name}
+        className="h-16 w-16 shrink-0 rounded-xl object-cover"
+      />
+    ) : (
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-border text-2xl">
+        {hobby.emoji}
+      </div>
+    )}
     <div className="min-w-0 flex-1">
-      <h3 className="truncate text-sm font-bold text-ink">{hobby.title}</h3>
+      <h3 className="truncate text-sm font-bold text-ink">{hobby.name}</h3>
       <p className="truncate text-xs text-taupe">{hobby.positionLabel}</p>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
         <div className="h-full rounded-full bg-terracotta" style={{ width: `${hobby.percent}%` }} />
@@ -230,7 +215,7 @@ const ContinueHobbyCard: React.FC<{ hobby: ContinueHobby; onNavigate: (path: str
   </div>
 );
 
-const HobbyGridCard: React.FC<{ hobby: HobbyItem; onNavigate: (path: string) => void }> = ({
+const HobbyGridCard: React.FC<{ hobby: Hobby; onNavigate: (path: string) => void }> = ({
   hobby,
   onNavigate,
 }) => (
@@ -238,15 +223,19 @@ const HobbyGridCard: React.FC<{ hobby: HobbyItem; onNavigate: (path: string) => 
     onClick={() => onNavigate(`/hobby/${hobby.id}`)}
     className="cursor-pointer overflow-hidden rounded-2xl bg-surface shadow-sm transition-transform hover:-translate-y-0.5"
   >
-    <div className="relative h-28 w-full overflow-hidden">
-      <img src={hobby.imageUrl} alt={hobby.title} className="h-full w-full object-cover" />
+    <div className="relative h-28 w-full overflow-hidden bg-border">
+      {hobby.imageUrl ? (
+        <img src={hobby.imageUrl} alt={hobby.name} className="h-full w-full object-cover" />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-3xl">{hobby.emoji}</div>
+      )}
       <SaveHeartButton hobbyId={hobby.id} className="absolute right-2 top-2 h-8 w-8" />
       <span className="absolute bottom-2 left-2 font-mono text-[10px] text-white/80 drop-shadow">
         [ {hobby.tags[0]} ]
       </span>
     </div>
     <div className="p-3">
-      <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.title}</h3>
+      <h3 className="mb-2 truncate text-sm font-bold text-ink">{hobby.name}</h3>
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
@@ -296,15 +285,19 @@ export const ExplorePage: React.FC = () => {
   const profile = useAppSelector((state: RootState) => state.user.profile);
   const savedHobbyIds = useAppSelector((state: RootState) => state.hobbies.savedHobbyIds);
   const recommendations = useAppSelector((state: RootState) => state.ai.recommendations);
+  const { hobbies: catalog, isLoading: catalogLoading, fetchAllHobbies } = useHobbies();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const exploreAllRef = useRef<HTMLDivElement>(null);
 
-  // Track page view on mount
   useEffect(() => {
     trackPageView('/explore');
   }, []);
+
+  useEffect(() => {
+    void fetchAllHobbies();
+  }, [fetchAllHobbies]);
 
   const handleCategoryChange = (category: Category) => {
     setActiveCategory(category);
@@ -317,53 +310,52 @@ export const ExplorePage: React.FC = () => {
   const streak = useMemo(() => getVisitStreak(), []);
   const topRecommendation = recommendations[0];
 
-  // Trending: highest rated hobbies, shown with a derived match score
-  const trendingHobbies = useMemo(
-    () => [...ART_CRAFT_HOBBIES].sort((a, b) => b.rating - a.rating).slice(0, 4),
-    []
-  );
+  // Trending: first four catalog hobbies (stable order from Firestore name sort)
+  const trendingHobbies = useMemo(() => catalog.slice(0, 4), [catalog]);
 
   // Pick up where you left off: saved hobbies, enriched with local learning progress
   const continueHobbies = useMemo<ContinueHobby[]>(() => {
     const allProgress = getAllProgress();
 
-    return ART_CRAFT_HOBBIES.filter((hobby) => savedHobbyIds.includes(hobby.id)).map((hobby) => {
-      const progress = allProgress[hobby.id];
-      const path = getLearningPath(hobby.id);
-      const totalLessons = path?.totalLessons ?? 0;
-      const percent =
-        progress && totalLessons > 0
-          ? Math.round((progress.completedLessons.length / totalLessons) * 100)
-          : 0;
+    return catalog
+      .filter((hobby) => savedHobbyIds.includes(hobby.id))
+      .map((hobby) => {
+        const progress = allProgress[hobby.id];
+        const path = getLearningPath(hobby.id);
+        const totalLessons = path?.totalLessons ?? 0;
+        const percent =
+          progress && totalLessons > 0
+            ? Math.round((progress.completedLessons.length / totalLessons) * 100)
+            : 0;
 
-      const currentLesson =
-        progress?.currentLessonId && getLesson(hobby.id, progress.currentLessonId);
-      const positionLabel = currentLesson
-        ? `${currentLesson.moduleName} · ${currentLesson.title}`
-        : 'Just saved · tap to begin';
+        const currentLesson =
+          progress?.currentLessonId && getLesson(hobby.id, progress.currentLessonId);
+        const positionLabel = currentLesson
+          ? `${currentLesson.moduleName} · ${currentLesson.title}`
+          : 'Just saved · tap to begin';
 
-      return { ...hobby, percent, positionLabel };
-    });
-  }, [savedHobbyIds]);
+        return { ...hobby, percent, positionLabel };
+      });
+  }, [catalog, savedHobbyIds]);
 
   const activeJourneysCount = useMemo(() => {
     const allProgress = getAllProgress();
-    return ART_CRAFT_HOBBIES.filter((hobby) => Boolean(allProgress[hobby.id])).length;
-  }, []);
+    return catalog.filter((hobby) => Boolean(allProgress[hobby.id])).length;
+  }, [catalog]);
 
   // Filter hobbies based on search query and active category chip
   const filteredHobbies = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return ART_CRAFT_HOBBIES.filter((hobby) => {
-      const matchesCategory = activeCategory === 'All' || hobby.category === activeCategory;
+    return catalog.filter((hobby) => {
+      const matchesCategory = matchesCategoryChip(hobby, activeCategory);
       const matchesSearch =
         !query ||
-        hobby.title.toLowerCase().includes(query) ||
+        hobby.name.toLowerCase().includes(query) ||
         hobby.tags.some((tag) => tag.toLowerCase().includes(query));
       return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, searchQuery]);
+  }, [catalog, activeCategory, searchQuery]);
 
   const scrollToExploreAll = () => {
     exploreAllRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -403,7 +395,11 @@ export const ExplorePage: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Search ${ART_CRAFT_HOBBIES.length}+ hobbies...`}
+              placeholder={
+                catalog.length > 0
+                  ? `Search ${catalog.length}+ hobbies...`
+                  : 'Search hobbies...'
+              }
               className="w-full bg-transparent text-sm text-ink placeholder:text-taupe focus:outline-none"
             />
             <button
@@ -437,9 +433,18 @@ export const ExplorePage: React.FC = () => {
             </button>
           </div>
           <div className="flex gap-4 overflow-x-auto px-5 pb-1" style={{ scrollbarWidth: 'none' }}>
-            {trendingHobbies.slice(0, 3).map((hobby) => (
-              <TrendingHobbyCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
-            ))}
+            {catalogLoading
+              ? Array.from({ length: 3 }).map((_, i) => (
+                  <TrendingHobbyCardSkeleton key={i} />
+                ))
+              : trendingHobbies.slice(0, 3).map((hobby, index) => (
+                  <TrendingHobbyCard
+                    key={hobby.id}
+                    hobby={hobby}
+                    onNavigate={navigate}
+                    matchScore={92 - index * 4}
+                  />
+                ))}
           </div>
         </section>
 
@@ -462,10 +467,16 @@ export const ExplorePage: React.FC = () => {
         <section className="px-5 pb-10">
           <div className="flex items-center justify-between pb-4">
             <h2 className="text-lg font-bold text-ink">Explore all</h2>
-            <span className="text-sm text-taupe">{ART_CRAFT_HOBBIES.length} hobbies</span>
+            <span className="text-sm text-taupe">{catalog.length} hobbies</span>
           </div>
 
-          {filteredHobbies.length > 0 ? (
+          {catalogLoading ? (
+            <div className="grid grid-cols-2 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <HobbyGridCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : filteredHobbies.length > 0 ? (
             <div className="grid grid-cols-2 gap-4">
               {filteredHobbies.map((hobby) => (
                 <HobbyGridCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
@@ -524,7 +535,11 @@ export const ExplorePage: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Search ${ART_CRAFT_HOBBIES.length}+ hobbies...`}
+              placeholder={
+                catalog.length > 0
+                  ? `Search ${catalog.length}+ hobbies...`
+                  : 'Search hobbies...'
+              }
               className="w-full bg-transparent text-sm text-ink placeholder:text-taupe focus:outline-none"
             />
             <button
@@ -554,10 +569,16 @@ export const ExplorePage: React.FC = () => {
             <div ref={exploreAllRef} className="lg:w-2/3">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-ink">Explore all</h2>
-                <span className="text-sm text-taupe">{ART_CRAFT_HOBBIES.length} hobbies</span>
+                <span className="text-sm text-taupe">{catalog.length} hobbies</span>
               </div>
 
-              {filteredHobbies.length > 0 ? (
+              {catalogLoading ? (
+                <div className="grid grid-cols-3 gap-4">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <HobbyGridCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredHobbies.length > 0 ? (
                 <div className="grid grid-cols-3 gap-4">
                   {filteredHobbies.map((hobby) => (
                     <HobbyGridCard key={hobby.id} hobby={hobby} onNavigate={navigate} />
@@ -646,28 +667,44 @@ export const ExplorePage: React.FC = () => {
                     <span className="text-[11px] text-taupe">Dubai</span>
                   </div>
                   <div className="space-y-3">
-                    {trendingHobbies.map((hobby) => (
-                      <div
-                        key={hobby.id}
-                        onClick={() => navigate(`/hobby/${hobby.id}`)}
-                        className="flex cursor-pointer items-center gap-2"
-                      >
-                        <img
-                          src={hobby.imageUrl}
-                          alt={hobby.title}
-                          className="h-9 w-9 shrink-0 rounded-lg object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-semibold text-ink">{hobby.title}</p>
-                          <p className="truncate text-[11px] capitalize text-taupe">
-                            {hobby.difficulty}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-xs font-semibold text-olive">
-                          {Math.round(hobby.rating * 20)}%
-                        </span>
-                      </div>
-                    ))}
+                    {catalogLoading
+                      ? Array.from({ length: 4 }).map((_, i) => (
+                          <div key={i} className="flex animate-pulse items-center gap-2">
+                            <div className="h-9 w-9 shrink-0 rounded-lg bg-border" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <div className="h-3 w-24 rounded bg-border" />
+                              <div className="h-2.5 w-16 rounded bg-border" />
+                            </div>
+                          </div>
+                        ))
+                      : trendingHobbies.map((hobby, index) => (
+                          <div
+                            key={hobby.id}
+                            onClick={() => navigate(`/hobby/${hobby.id}`)}
+                            className="flex cursor-pointer items-center gap-2"
+                          >
+                            {hobby.imageUrl ? (
+                              <img
+                                src={hobby.imageUrl}
+                                alt={hobby.name}
+                                className="h-9 w-9 shrink-0 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-border text-sm">
+                                {hobby.emoji}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-semibold text-ink">{hobby.name}</p>
+                              <p className="truncate text-[11px] capitalize text-taupe">
+                                {hobby.difficulty}
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-xs font-semibold text-olive">
+                              {92 - index * 4}%
+                            </span>
+                          </div>
+                        ))}
                   </div>
                 </div>
               </div>
@@ -687,9 +724,19 @@ export const ExplorePage: React.FC = () => {
               </button>
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {trendingHobbies.map((hobby) => (
-                <TrendingHobbyCard key={hobby.id} hobby={hobby} onNavigate={navigate} variant="grid" />
-              ))}
+              {catalogLoading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <TrendingHobbyCardSkeleton key={i} variant="grid" />
+                  ))
+                : trendingHobbies.map((hobby, index) => (
+                    <TrendingHobbyCard
+                      key={hobby.id}
+                      hobby={hobby}
+                      onNavigate={navigate}
+                      variant="grid"
+                      matchScore={92 - index * 4}
+                    />
+                  ))}
             </div>
           </section>
         </div>

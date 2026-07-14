@@ -102,6 +102,7 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { savedHobbies, toggleSaveHobby } = useLocalSavedHobbies();
   const profile = useAppSelector((state) => state.user.profile);
+  const isAuthenticated = useAppSelector((state) => state.user.isAuthenticated);
   const recommendations = useAppSelector((state) => state.ai.recommendations);
 
   const firstName = profile?.displayName?.split(' ')[0] || 'there';
@@ -307,6 +308,25 @@ export const HomePage: React.FC = () => {
           {/* Main column */}
           <div className="lg:w-[62%]">
             {StreakHeroCard}
+
+            {isAuthenticated && (
+              <div className="mb-4 mt-4 flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-[#C4522A]/10 to-[#6B7C3A]/10 p-4">
+                <div className="min-w-0 text-left">
+                  <p className="font-semibold text-[#2C1810]">How are you feeling?</p>
+                  <p className="mt-0.5 text-xs text-[#6B5B52]">
+                    Get hobby suggestions for your mood
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/mood')}
+                  className="shrink-0 rounded-2xl bg-[#C4522A] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#C4522A]/90"
+                >
+                  Check in →
+                </button>
+              </div>
+            )}
+
             <div className="mt-4 lg:hidden">{StreakCard}</div>
 
             {/* Active journeys */}

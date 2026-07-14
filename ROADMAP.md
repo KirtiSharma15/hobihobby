@@ -418,8 +418,8 @@ Font: **Plus Jakarta Sans**
 | 1 | Auth, save hobbies, Firebase hosting | ✅ Complete |
 | 2 | AI Discovery Quiz + AI Hobby Coach | ✅ Complete |
 | 3 | 365-day journey, streaks, retention | ✅ Complete |
-| 4 | Hobby Map, local discovery, Community Circles | 🔄 In Progress |
-| 5 | Mood-based recommendations + MCP Coach | 🔲 Not started |
+| 4 | Hobby Map, local discovery, Community Circles | ✅ Complete |
+| 5 | Mood-based recommendations + MCP Coach | 🔄 In Progress |
 | 6 | Monetization — Stripe, freemium, affiliate | 🔲 Not started |
 | 7 | React Native + Hindi + Razorpay + India launch | 🔲 Not started |
 

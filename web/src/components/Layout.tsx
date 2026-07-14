@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Compass, MessageCircle, Heart, MapPin } from 'lucide-react';
+import { Sparkles, Compass, MessageCircle, Heart, MapPin, Smile } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAppSelector } from '@/hooks/useAppDispatch';
 import { FeedbackModal } from './FeedbackModal';
@@ -19,6 +19,7 @@ interface LayoutProps {
 const NAV_LINKS: { path: string; label: string; end?: boolean }[] = [
   { path: '/explore', label: 'Explore', end: true },
   { path: '/quiz', label: 'Discover' },
+  { path: '/mood', label: 'Mood ✨' },
   { path: '/map', label: 'Map 📍' },
   { path: '/coach', label: 'Coach' },
   { path: '/community', label: 'Community' },
@@ -33,6 +34,7 @@ const BOTTOM_NAV_ITEMS: {
 }[] = [
   { path: '/explore', label: 'Explore', icon: <Compass className="h-5 w-5" />, end: true },
   { path: '/quiz', label: 'Discover', icon: <Sparkles className="h-5 w-5" /> },
+  { path: '/mood', label: 'Mood', icon: <Smile className="h-5 w-5" /> },
   { path: '/map', label: 'Map 📍', icon: <MapPin className="h-5 w-5" /> },
   { path: '/', label: 'My Hobbies', icon: <Heart className="h-5 w-5" />, end: true },
   { path: '/coach', label: 'Coach', icon: <MessageCircle className="h-5 w-5" /> },
@@ -41,7 +43,7 @@ const BOTTOM_NAV_ITEMS: {
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'text-sm transition-colors duration-200',
-    isActive ? 'font-semibold text-terracotta' : 'font-medium text-taupe hover:text-ink'
+    isActive ? 'font-semibold text-[#C4522A]' : 'font-medium text-taupe hover:text-ink'
   );
 
 /**
@@ -78,7 +80,7 @@ const JourneyNavLink: React.FC = () => {
 const bottomNavLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
     'flex flex-col items-center gap-1 px-3 py-1.5 text-[11px] font-medium transition-colors',
-    isActive ? 'text-terracotta' : 'text-taupe'
+    isActive ? 'text-[#C4522A]' : 'text-taupe'
   );
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
