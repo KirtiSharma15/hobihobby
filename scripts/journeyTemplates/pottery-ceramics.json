@@ -1,0 +1,63 @@
+{
+  "hobbyId": "pottery-ceramics",
+  "hobbyName": "Pottery & Ceramics",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Centre your first ball of clay",
+      "description": "Wedge your clay to remove air bubbles. Try centring a small ball on the wheel.",
+      "duration": "30 min",
+      "type": "watch + try",
+      "tip": "Keep your elbows anchored to your body for more control"
+    },
+    {
+      "day": 2,
+      "title": "Pinch pot fundamentals",
+      "description": "Make 3 pinch pots. Focus on even wall thickness throughout.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Rotate the clay as you pinch — never stay in one spot"
+    },
+    {
+      "day": 3,
+      "title": "Shape your first bowl",
+      "description": "Using the wheel, open the clay and pull up the walls to form a bowl shape.",
+      "duration": "45 min",
+      "type": "practice",
+      "tip": "Wet hands reduce friction but too much water weakens the clay"
+    },
+    {
+      "day": 4,
+      "title": "Trimming and finishing",
+      "description": "Trim the base of yesterday's bowl. Add a foot ring if clay is leather-hard.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Trim when clay is leather-hard — not too wet, not too dry"
+    },
+    {
+      "day": 5,
+      "title": "Hand building a mug",
+      "description": "Roll a slab, form a cylinder, attach a pulled handle. Your first mug!",
+      "duration": "45 min",
+      "type": "project",
+      "tip": "Score and slip all joints — this prevents cracking during drying"
+    },
+    {
+      "day": 6,
+      "title": "Surface decoration",
+      "description": "Try 3 surface techniques: stamping, carving, and slip trailing on test tiles.",
+      "duration": "30 min",
+      "type": "experiment",
+      "tip": "Decorate at leather-hard stage for best results"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review",
+      "description": "Photograph all your pieces from this week. Note what you want to improve.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Even professional potters throw away most of their first pieces — normal"
+    }
+  ]
+}

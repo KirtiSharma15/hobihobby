@@ -1,0 +1,63 @@
+{
+  "hobbyId": "sketching-drawing",
+  "hobbyName": "Sketching & Drawing",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Observational warm-up: the hand",
+      "description": "Spend 15 minutes observing your non-dominant hand. Focus on the lines, folds, and shadows. Try to mentally 'trace' its outline.",
+      "duration": "15 min",
+      "type": "observe",
+      "tip": "Break down complex forms into simpler shapes like cylinders and spheres"
+    },
+    {
+      "day": 2,
+      "title": "Basic line exercises",
+      "description": "On paper, practice drawing straight lines, curved lines, and circles without rulers or compasses. Aim for smooth, consistent strokes.",
+      "duration": "20 min",
+      "type": "practice",
+      "tip": "Draw from your shoulder, not just your wrist, for straighter lines"
+    },
+    {
+      "day": 3,
+      "title": "Form and perspective: the cube",
+      "description": "Draw 5 cubes from different angles. Focus on making the lines parallel and converging correctly to create a sense of depth.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Use light 'construction lines' first, then darken the final lines"
+    },
+    {
+      "day": 4,
+      "title": "Shading fundamentals: the sphere",
+      "description": "Draw a circle and use cross-hatching or blending to shade it, creating the illusion of a 3D sphere with a light source.",
+      "duration": "30 min",
+      "type": "watch + try",
+      "tip": "Establish your light source first and consistently apply shadows away from it"
+    },
+    {
+      "day": 5,
+      "title": "Sketching household objects",
+      "description": "Choose 3 simple objects (e.g., a mug, a book, an apple). Sketch them quickly, focusing on their basic shapes and proportions.",
+      "duration": "45 min",
+      "type": "project",
+      "tip": "Squinting at your subject helps simplify it into basic shapes and values"
+    },
+    {
+      "day": 6,
+      "title": "Texture exploration",
+      "description": "Find 3 different textures (e.g., wood grain, fabric, metal). Try to replicate their visual texture using various pencil strokes.",
+      "duration": "30 min",
+      "type": "experiment",
+      "tip": "Varying pressure and line direction helps create different textural effects"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 sketchbook review",
+      "description": "Look through all your drawings from this week. Identify your favorite piece and one area you want to improve next week.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Compare your early work to later pieces to see your progress, not just flaws"
+    }
+  ]
+}

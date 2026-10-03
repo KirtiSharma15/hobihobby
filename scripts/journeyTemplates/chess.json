@@ -1,0 +1,63 @@
+{
+  "hobbyId": "chess",
+  "hobbyName": "Chess",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Meet the pieces & their moves",
+      "description": "Learn how each of the six chess pieces (Pawn, Knight, Bishop, Rook, Queen, King) moves on the board. No board needed, just visualize.",
+      "duration": "20 min",
+      "type": "learn",
+      "tip": "The Knight's 'L' shape move is often the trickiest to remember first."
+    },
+    {
+      "day": 2,
+      "title": "Set up the board & basic captures",
+      "description": "Set up a physical or digital chess board correctly. Practice moving pieces and capturing opponent's pieces according to their rules.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Queens and Kings always start on their own color square."
+    },
+    {
+      "day": 3,
+      "title": "Special moves: Castling & En Passant",
+      "description": "Understand and practice the special moves: Castling (King and Rook) and En Passant (Pawn capture). These are crucial for strategy.",
+      "duration": "25 min",
+      "type": "learn + practice",
+      "tip": "Castling can only happen if neither the King nor the Rook has moved and no squares are attacked."
+    },
+    {
+      "day": 4,
+      "title": "Check, Checkmate, and Stalemate",
+      "description": "Learn the conditions for Check, Checkmate (winning the game), and Stalemate (a draw). Play through 3 examples of each.",
+      "duration": "30 min",
+      "type": "study",
+      "tip": "A King in check must immediately move out of check, block the check, or capture the attacking piece."
+    },
+    {
+      "day": 5,
+      "title": "Play your first full game (vs. AI)",
+      "description": "Play a full game against a beginner-level AI on Chess.com or Lichess. Focus on moving all your pieces and not giving away pieces for free.",
+      "duration": "45 min",
+      "type": "play",
+      "tip": "Don't bring your Queen out too early; it can easily get attacked."
+    },
+    {
+      "day": 6,
+      "title": "Opening principles: Control the center",
+      "description": "Study the basic opening principles: control the center squares (d4, e4, d5, e5), develop your knights and bishops, and castle early.",
+      "duration": "20 min",
+      "type": "study",
+      "tip": "Moving the same piece multiple times in the opening wastes valuable time."
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review & goals",
+      "description": "Reflect on your first game and what you've learned. Identify one area you want to focus on next week (e.g., protecting pieces, pawn structure).",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Reviewing your own games is one of the fastest ways to improve."
+    }
+  ]
+}

@@ -12,7 +12,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useLocalProgress } from '@/hooks/useLocalProgress';
+import { useLearningProgress } from '@/hooks/useLearningProgress';
 import { cn } from '@/utils/cn';
 import { getLesson, getNextLesson } from '@/data/learningPaths';
 import type { Lesson } from '@shared/types';
@@ -91,7 +91,9 @@ export const LessonPage: React.FC = () => {
     lessonId: string; 
   }>();
   const navigate = useNavigate();
-  const { isLessonCompleted, markLessonComplete, markLessonIncomplete } = useLocalProgress(hobbyId || '');
+  const { getProgressForHobby, loadLearningProgress, markLessonProgress } =
+    useLearningProgress();
+  const progress = hobbyId ? getProgressForHobby(hobbyId) : undefined;
 
   const [lesson, setLesson] = useState<(Lesson & { moduleName?: string; moduleId?: string }) | null>(null);
   const [nextLesson, setNextLesson] = useState<{
@@ -132,16 +134,18 @@ export const LessonPage: React.FC = () => {
     setCheckedSteps(new Set());
   }, [hobbyId, lessonId]);
 
-  const isComplete = lessonId ? isLessonCompleted(lessonId) : false;
+  useEffect(() => {
+    if (!hobbyId) return;
+    void loadLearningProgress(hobbyId);
+  }, [hobbyId, loadLearningProgress]);
+
+  const isComplete = lessonId
+    ? Boolean(progress?.completedLessonIds.includes(lessonId))
+    : false;
 
   const handleToggleComplete = () => {
-    if (!lessonId) return;
-    
-    if (isComplete) {
-      markLessonIncomplete(lessonId);
-    } else {
-      markLessonComplete(lessonId);
-    }
+    if (!hobbyId || !lessonId) return;
+    void markLessonProgress(hobbyId, lessonId, !isComplete);
   };
 
   const handleCheckStep = (stepIndex: number) => {

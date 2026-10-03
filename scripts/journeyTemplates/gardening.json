@@ -1,0 +1,63 @@
+{
+  "hobbyId": "gardening",
+  "hobbyName": "Gardening",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Observe your sunlight",
+      "description": "Spend 15 minutes observing different areas of your living space. Note how much direct sunlight each spot receives throughout the day. This helps you understand where plants can thrive.",
+      "duration": "15 min",
+      "type": "observe",
+      "tip": "South-facing windows generally receive the most direct sunlight in the Northern Hemisphere."
+    },
+    {
+      "day": 2,
+      "title": "Research beginner plants",
+      "description": "Based on yesterday's light observation, research 3 easy-to-grow plants suitable for your available light and the UAE climate (e.g., basil, mint, aloe vera).",
+      "duration": "20 min",
+      "type": "research",
+      "tip": "Look for plants labelled 'drought-tolerant' or 'full sun' for UAE outdoor conditions."
+    },
+    {
+      "day": 3,
+      "title": "Gather your tools",
+      "description": "Organize your starter kit: pots, soil, basic tools, and seeds/seedlings. Clean any used pots with soap and water to prevent disease.",
+      "duration": "20 min",
+      "type": "prepare",
+      "tip": "Sterilize old pots with a 1:9 bleach-to-water solution to kill lingering pathogens."
+    },
+    {
+      "day": 4,
+      "title": "Seed starting 101",
+      "description": "Fill 3 small pots with potting soil. Plant 2-3 seeds in each, following package depth instructions. Gently water until moist.",
+      "duration": "30 min",
+      "type": "project",
+      "tip": "Planting seeds too deep prevents them from germinating; too shallow and they dry out."
+    },
+    {
+      "day": 5,
+      "title": "Watering basics",
+      "description": "Check the soil moisture of your newly planted seeds. Water only if the top inch of soil feels dry. Observe how the water absorbs.",
+      "duration": "15 min",
+      "type": "practice",
+      "tip": "Overwatering is a common killer of beginner plants; always check soil moisture before adding more water."
+    },
+    {
+      "day": 6,
+      "title": "Labeling and light placement",
+      "description": "Label each pot with the plant type and date planted. Place them in the sunniest spot you identified on Day 1, ensuring good air circulation.",
+      "duration": "15 min",
+      "type": "organize",
+      "tip": "Labels help track germination times and prevent confusion as seedlings emerge."
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review & plan",
+      "description": "Inspect your planted pots for any signs of germination or issues. Reflect on what you learned this week and what you want to try next.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Patience is key in gardening; some seeds take weeks to sprout."
+    }
+  ]
+}

@@ -261,6 +261,7 @@ Do not revisit without a strong reason. Log any changes in the [Decision Log](#d
 - ✅ **Web-first.** React Native is Sprint 7. All current work targets `web/`.
 - ✅ **UAE-first.** India market launches in Sprint 7 with Hindi, Razorpay, and React Native together.
 
+- Whenever a new journeyTemplates document is added, run node scripts/syncJourneyFlags.js before considering that hobby launch-ready.
 ---
 
 ## Folder Structure

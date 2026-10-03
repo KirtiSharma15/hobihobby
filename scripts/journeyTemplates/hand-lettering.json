@@ -1,0 +1,63 @@
+{
+  "hobbyId": "hand-lettering",
+  "hobbyName": "Hand Lettering",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Warm-up shapes and doodles",
+      "description": "Fill a page with basic shapes, loops, and doodles to loosen up your hand before lettering.",
+      "duration": "20 min",
+      "type": "watch + try",
+      "tip": "Warm-ups matter — cold hands produce shaky, tense letterforms"
+    },
+    {
+      "day": 2,
+      "title": "Faux calligraphy technique",
+      "description": "Write a word in normal handwriting, then thicken every downstroke to fake a calligraphy look.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Faux calligraphy is the fastest way to get the calligraphy look without special tools"
+    },
+    {
+      "day": 3,
+      "title": "Simple serif alphabet",
+      "description": "Draw the full alphabet in a basic serif style, focusing on consistent letter height.",
+      "duration": "40 min",
+      "type": "practice",
+      "tip": "Sketch letters lightly in pencil first, then go over them with your final line"
+    },
+    {
+      "day": 4,
+      "title": "Simple sans-serif alphabet",
+      "description": "Draw the full alphabet in a bold, blocky sans-serif style.",
+      "duration": "40 min",
+      "type": "practice",
+      "tip": "Bold sans-serif letters read best when the strokes are all a uniform thickness"
+    },
+    {
+      "day": 5,
+      "title": "Banners and flourishes",
+      "description": "Learn to draw a simple ribbon banner and add flourish lines around a lettered word.",
+      "duration": "30 min",
+      "type": "project",
+      "tip": "Draw the banner first, then fit your lettering inside it — not the other way around"
+    },
+    {
+      "day": 6,
+      "title": "Compose a quote layout",
+      "description": "Lay out a short quote mixing 2 of the styles you have practiced, with a banner or flourish.",
+      "duration": "35 min",
+      "type": "experiment",
+      "tip": "Mix at most 2-3 lettering styles per piece — more than that looks cluttered"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review",
+      "description": "Photograph your favorite piece from the week and note what felt hardest to control.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Save every practice page — you will love seeing the before/after in a month"
+    }
+  ]
+}

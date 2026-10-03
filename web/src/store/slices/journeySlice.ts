@@ -9,6 +9,12 @@ export interface JourneyDay {
   tip: string;
 }
 
+export interface LearningProgress {
+  currentLessonId: string | null;
+  completedLessonIds: string[];
+  lastActivityAt: string | null;
+}
+
 export interface Journey {
   hobbyId: string;
   hobbyName: string;
@@ -20,6 +26,7 @@ export interface Journey {
   completedDays: number[];
   milestones: string[];
   totalDays: number;
+  learningProgress?: LearningProgress;
 }
 
 interface JourneyState {
@@ -83,6 +90,31 @@ const journeySlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    setLearningProgress: (
+      state,
+      action: PayloadAction<{ hobbyId: string; progress: LearningProgress }>
+    ) => {
+      const journey = state.activeJourneys[action.payload.hobbyId];
+      if (journey) {
+        journey.learningProgress = action.payload.progress;
+      } else {
+        // Learning progress can exist for a hobby with no daily
+        // journey started yet — create a minimal journey entry
+        state.activeJourneys[action.payload.hobbyId] = {
+          hobbyId: action.payload.hobbyId,
+          hobbyName: '',
+          startedAt: '',
+          currentDay: 0,
+          lastActivityAt: '',
+          streak: 0,
+          longestStreak: 0,
+          completedDays: [],
+          milestones: [],
+          totalDays: 0,
+          learningProgress: action.payload.progress,
+        };
+      }
+    },
   },
 });
 
@@ -95,6 +127,7 @@ export const {
   setWeeklyPlan,
   setLoading,
   setError,
+  setLearningProgress,
 } = journeySlice.actions;
 
 export const journeyReducer = journeySlice.reducer;

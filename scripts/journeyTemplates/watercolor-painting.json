@@ -1,0 +1,63 @@
+{
+  "hobbyId": "watercolor-painting",
+  "hobbyName": "Watercolor Painting",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Colour mixing basics",
+      "description": "Mix primary colours to create secondary colours. Fill a page with colour swatches.",
+      "duration": "20 min",
+      "type": "practice",
+      "tip": "Always add dark to light, never light to dark"
+    },
+    {
+      "day": 2,
+      "title": "Simple shapes",
+      "description": "Paint 5 simple objects: apple, cup, book, ball, leaf. Focus on shape not detail.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Squint at your subject — this helps you see shapes instead of details"
+    },
+    {
+      "day": 3,
+      "title": "Light and shadow",
+      "description": "Paint a single object with a clear light source. Add a highlight and a shadow.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "The shadow is never just black — add a complementary colour"
+    },
+    {
+      "day": 4,
+      "title": "Colour harmony",
+      "description": "Paint a small scene using only 3 colours + white.",
+      "duration": "25 min",
+      "type": "practice",
+      "tip": "Limiting colours forces you to mix creatively"
+    },
+    {
+      "day": 5,
+      "title": "Texture experiment",
+      "description": "Try 4 different brush techniques: stippling, cross-hatching, wet-on-wet, dry brush.",
+      "duration": "20 min",
+      "type": "experiment",
+      "tip": "Load less paint than you think you need"
+    },
+    {
+      "day": 6,
+      "title": "Paint from a photo",
+      "description": "Choose a simple landscape photo and paint it loosely. Aim for mood, not accuracy.",
+      "duration": "45 min",
+      "type": "practice",
+      "tip": "Simplify — paint 3 layers: background, midground, foreground"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review",
+      "description": "Line up all your paintings from this week. Pick one to photograph and save.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Progress feels slow day to day but dramatic week to week"
+    }
+  ]
+}

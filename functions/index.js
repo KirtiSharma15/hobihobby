@@ -369,6 +369,86 @@ exports.completeDay = onCall(async (request) => {
   };
 });
 
+// ─── Learning path: update lesson progress on journey doc ─────────────────
+exports.updateLearningProgress = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be logged in');
+  }
+
+  const uid = request.auth.uid;
+  const { hobbyId, lessonId, completed } = request.data ?? {};
+  if (!hobbyId || !lessonId || typeof completed !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'hobbyId, lessonId, and completed are required');
+  }
+
+  const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+  const journeySnap = await journeyRef.get();
+
+  if (!journeySnap.exists) {
+    // Learning progress can exist without a daily journey template
+    await journeyRef.set({
+      hobbyId,
+      startedAt: admin.firestore.FieldValue.serverTimestamp(),
+      currentDay: 1,
+      lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
+      streak: 0,
+      longestStreak: 0,
+      completedDays: [],
+      milestones: [],
+      totalDays: 365,
+    });
+  }
+
+  const existing = journeySnap.exists ? journeySnap.data() : {};
+  const prev = existing.learningProgress ?? {
+    currentLessonId: null,
+    completedLessonIds: [],
+    lastActivityAt: null,
+  };
+
+  const completedLessonIds = Array.isArray(prev.completedLessonIds)
+    ? [...prev.completedLessonIds]
+    : [];
+
+  if (completed) {
+    if (!completedLessonIds.includes(lessonId)) {
+      completedLessonIds.push(lessonId);
+    }
+  }
+
+  const learningProgress = {
+    currentLessonId: lessonId,
+    completedLessonIds,
+    lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await journeyRef.set({ learningProgress }, { merge: true });
+
+  return { success: true, learningProgress };
+});
+
+// ─── Learning path: read lesson progress from journey doc ─────────────────
+exports.getLearningProgress = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError('unauthenticated', 'Must be logged in');
+  }
+
+  const uid = request.auth.uid;
+  const { hobbyId } = request.data ?? {};
+  if (!hobbyId) {
+    throw new HttpsError('invalid-argument', 'hobbyId is required');
+  }
+
+  const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+  const journeySnap = await journeyRef.get();
+
+  if (!journeySnap.exists || !journeySnap.data()?.learningProgress) {
+    return { learningProgress: null };
+  }
+
+  return { learningProgress: journeySnap.data().learningProgress };
+});
+
 // ─── AI: Weekly plan for a journey ────────────────────────────────────────
 exports.getWeeklyPlan = onCall(
   { secrets: ['GEMINI_API_KEY'] },

@@ -2,6 +2,7 @@ import React from 'react';
 import CoachChat from '../components/coach/CoachChat';
 import { useHobbyCoach } from '../hooks/useHobbyCoach';
 import { useAppSelector } from '../hooks/useAppDispatch';
+import { getLesson } from '../data/learningPaths';
 import type { Journey } from '../store/slices/journeySlice';
 
 const CoachPage: React.FC = () => {
@@ -20,6 +21,34 @@ const CoachPage: React.FC = () => {
   const hobbyContext = mostRecentJourney
     ? `${mostRecentJourney.hobbyName}, Day ${mostRecentJourney.currentDay} of 365`
     : undefined;
+
+  const currentLessonId =
+    mostRecentJourney?.learningProgress?.currentLessonId ?? null;
+  const lookedUpLesson =
+    mostRecentJourney && currentLessonId
+      ? getLesson(mostRecentJourney.hobbyId, currentLessonId)
+      : null;
+
+  const activeJourneyDisplay = mostRecentJourney
+    ? {
+        id: mostRecentJourney.hobbyId,
+        title: mostRecentJourney.hobbyName,
+        day: mostRecentJourney.currentDay,
+        lesson: currentLessonId
+          ? lookedUpLesson
+            ? {
+                title: lookedUpLesson.title,
+                duration: lookedUpLesson.duration,
+                type: lookedUpLesson.type,
+              }
+            : {
+                title: `Day ${mostRecentJourney.currentDay} task`,
+                duration: '~15 min',
+                type: 'practice',
+              }
+          : null,
+      }
+    : null;
 
   const SUGGESTED_QUESTIONS = hobbyContext
     ? [
@@ -59,7 +88,7 @@ const CoachPage: React.FC = () => {
 
         {/* Chat window */}
         <div className="flex h-[calc(100vh-9rem)] w-full flex-col overflow-hidden bg-surface shadow-2xl md:h-[calc(100vh-4rem)] md:max-h-[700px] md:max-w-2xl md:rounded-2xl">
-          <CoachChat hobbyContext={hobbyContext} />
+          <CoachChat hobbyContext={hobbyContext} activeJourneyDisplay={activeJourneyDisplay} />
         </div>
       </div>
     </div>

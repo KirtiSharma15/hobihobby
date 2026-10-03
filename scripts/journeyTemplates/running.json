@@ -1,0 +1,63 @@
+{
+  "hobbyId": "running",
+  "hobbyName": "Running",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Walk for 15 minutes",
+      "description": "Lace up any comfortable shoes and head out for a brisk 15-minute walk. Focus on your breathing and how your body feels.",
+      "duration": "15 min",
+      "type": "practice",
+      "tip": "Maintain a pace where you can still hold a conversation comfortably"
+    },
+    {
+      "day": 2,
+      "title": "Introduce short run intervals",
+      "description": "Walk for 5 minutes to warm up. Then, alternate 30 seconds of slow jogging with 2 minutes of walking, repeating 5 times. Cool down with a 5-minute walk.",
+      "duration": "25 min",
+      "type": "practice",
+      "tip": "Keep your running pace easy – it should feel like you could go on longer"
+    },
+    {
+      "day": 3,
+      "title": "Focus on running form",
+      "description": "Watch a beginner video on running form (e.g., posture, foot strike). Then, do a 20-minute walk with short 1-minute run intervals, consciously applying one form tip.",
+      "duration": "30 min",
+      "type": "watch + try",
+      "tip": "Aim for light, quick steps rather than long strides to reduce impact"
+    },
+    {
+      "day": 4,
+      "title": "Increase run duration slightly",
+      "description": "Warm up with a 5-minute walk. Then, alternate 1 minute of jogging with 2 minutes of walking, repeating 6 times. Cool down with a 5-minute walk.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Listen to your body; it's okay to shorten run intervals if you feel too tired"
+    },
+    {
+      "day": 5,
+      "title": "Rest and active recovery",
+      "description": "Engage in light stretching or a gentle 15-minute walk. Allow your muscles to recover after your previous runs.",
+      "duration": "15 min",
+      "type": "rest + recover",
+      "tip": "Recovery is as important as running for preventing injury and building strength"
+    },
+    {
+      "day": 6,
+      "title": "Extend your total run time",
+      "description": "Warm up with a 5-minute walk. Then, alternate 90 seconds of jogging with 2 minutes of walking, repeating 5 times. Finish with a 5-minute cool-down walk.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Gradually increasing your run time prevents burnout and overuse injuries"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review and plan",
+      "description": "Reflect on how your body felt this week. Note what was easy, what was challenging, and what you'd like to achieve next week. Plan your runs for the coming days.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Consistency, not speed, is the most crucial factor for beginner runners"
+    }
+  ]
+}

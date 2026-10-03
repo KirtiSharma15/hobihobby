@@ -1,0 +1,63 @@
+{
+  "hobbyId": "guitar",
+  "hobbyName": "Guitar",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Get to know your guitar",
+      "description": "Hold the guitar in playing position. Identify the headstock, tuning pegs, neck, frets, strings, soundhole, and bridge. Pluck each open string to hear its sound.",
+      "duration": "15 min",
+      "type": "explore",
+      "tip": "Sit upright with good posture; a classical guitar position can reduce strain"
+    },
+    {
+      "day": 2,
+      "title": "Tune your guitar",
+      "description": "Download a free tuner app (or use a clip-on tuner). Tune each string (E-A-D-G-B-e) until it's perfectly in pitch.",
+      "duration": "20 min",
+      "type": "skill",
+      "tip": "Tune from flat to sharp to avoid over-tightening and breaking strings"
+    },
+    {
+      "day": 3,
+      "title": "Master the 'E' chord shape",
+      "description": "Place your fingers for an open E major chord. Strum slowly, checking each string for a clear, ringing sound. Adjust finger pressure as needed.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Press down with the very tips of your fingers, not the pads, to avoid muting adjacent strings"
+    },
+    {
+      "day": 4,
+      "title": "The 'A' chord challenge",
+      "description": "Learn the open A major chord shape. Practice switching between E major and A major 10 times, aiming for smooth transitions.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Try to move all fingers simultaneously when changing chords, rather than one by one"
+    },
+    {
+      "day": 5,
+      "title": "Strumming basics",
+      "description": "With your E major chord held, practice a simple down-up strumming pattern (e.g., down-down-up-up-down-up). Keep a consistent rhythm.",
+      "duration": "25 min",
+      "type": "practice",
+      "tip": "Use your wrist, not your whole arm, for a more relaxed and fluid strumming motion"
+    },
+    {
+      "day": 6,
+      "title": "Your first song: 'Horse With No Name'",
+      "description": "Learn the two-chord progression (Em and D) for 'A Horse With No Name'. Practice strumming and switching between these chords.",
+      "duration": "45 min",
+      "type": "project",
+      "tip": "Focus on the rhythm of the chord changes first, then worry about perfect sound"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 check-in and goals",
+      "description": "Play through the chords and song you've learned. Identify what felt good and what areas need more practice. Set a small goal for next week.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Record yourself playing to objectively hear your progress and identify areas for improvement"
+    }
+  ]
+}

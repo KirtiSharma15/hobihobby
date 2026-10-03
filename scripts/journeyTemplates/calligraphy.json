@@ -1,0 +1,63 @@
+{
+  "hobbyId": "calligraphy",
+  "hobbyName": "Calligraphy",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Tracing basic strokes",
+      "description": "Print out some free calligraphy practice sheets online. Use a pencil to trace basic upstrokes and downstrokes.",
+      "duration": "20 min",
+      "type": "watch + try",
+      "tip": "Maintain consistent pressure for thin upstrokes and thick downstrokes, even with a pencil"
+    },
+    {
+      "day": 2,
+      "title": "Brush pen fundamentals",
+      "description": "Grab your brush pen. Practice basic upstrokes (light pressure) and downstrokes (heavy pressure) on your paper pad.",
+      "duration": "25 min",
+      "type": "practice",
+      "tip": "Only the very tip of the brush pen should touch the paper for thin lines"
+    },
+    {
+      "day": 3,
+      "title": "Mastering the 'o' stroke",
+      "description": "Practice the oval shape by combining a light upstroke and a heavy downstroke. Focus on smooth transitions.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Rotate your paper if it helps you achieve a smoother curve"
+    },
+    {
+      "day": 4,
+      "title": "Lowercase 'a' and 'b'",
+      "description": "Combine basic strokes to form lowercase 'a' and 'b'. Pay attention to entry and exit strokes.",
+      "duration": "30 min",
+      "type": "practice",
+      "tip": "Lift your pen completely between strokes for cleaner letter connections"
+    },
+    {
+      "day": 5,
+      "title": "Connecting letters",
+      "description": "Practice connecting two simple letters like 'at' or 'be'. Maintain consistent spacing.",
+      "duration": "35 min",
+      "type": "practice",
+      "tip": "The exit stroke of one letter becomes the entry stroke of the next"
+    },
+    {
+      "day": 6,
+      "title": "Your first short word",
+      "description": "Write a short word like 'hello' or 'love'. Focus on consistent letter size and spacing.",
+      "duration": "40 min",
+      "type": "project",
+      "tip": "Lightly sketch the word in pencil first if you're unsure of spacing"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 review & reflection",
+      "description": "Look at all your practice sheets. Identify one letter or stroke you improved on and one you want to focus on next week.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Keep all your practice sheets to track your progress over time"
+    }
+  ]
+}

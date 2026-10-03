@@ -2,9 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Clock } from 'lucide-react';
 import { useHobbyCoach } from '../../hooks/useHobbyCoach';
-import { getAllProgress, type HobbyProgress } from '../../hooks/useLocalProgress';
-import { LEARNING_PATHS } from '../../data/learningPaths';
-import type { LearningPath } from '@shared/types';
 import { getVisitStreak } from '../../utils/analytics';
 import { cn } from '../../utils/cn';
 import { CoachAvatar } from './CoachAvatar';
@@ -13,51 +10,17 @@ import CoachInput from './CoachInput';
 
 interface Props {
   hobbyContext?: string;
+  activeJourneyDisplay?: {
+    id: string;
+    title: string;
+    day: number;
+    lesson: {
+      title: string;
+      duration: string;
+      type: string;
+    } | null;
+  } | null;
 }
-
-const HOBBY_TITLES: Record<string, string> = {
-  'watercolor-painting': 'Watercolor Painting',
-  'acrylic-painting': 'Acrylic Painting',
-  'pottery-ceramics': 'Pottery',
-  calligraphy: 'Calligraphy',
-  'hand-lettering': 'Hand Lettering',
-};
-
-const getDayNumber = (progress: HobbyProgress): number => {
-  const started = new Date(progress.startedAt).getTime();
-  const days = Math.floor((Date.now() - started) / (1000 * 60 * 60 * 24)) + 1;
-  return Math.min(Math.max(days, 1), 365);
-};
-
-/** Most recently active local learning journey, used to give the coach context. */
-const getActiveJourney = () => {
-  const all = getAllProgress();
-  const entries = Object.entries(all)
-    .filter(([id]) => HOBBY_TITLES[id])
-    .sort(
-      (a, b) => new Date(b[1].lastActivityAt).getTime() - new Date(a[1].lastActivityAt).getTime()
-    );
-  if (entries.length === 0) return null;
-
-  const [id, progress] = entries[0];
-  const day = getDayNumber(progress);
-  const path = (LEARNING_PATHS as unknown as Record<string, LearningPath>)[id];
-  let lesson = null;
-  if (path) {
-    for (const mod of path.modules) {
-      const found = progress.currentLessonId
-        ? mod.lessons.find((l) => l.id === progress.currentLessonId)
-        : undefined;
-      if (found) {
-        lesson = found;
-        break;
-      }
-    }
-    if (!lesson) lesson = path.modules[0]?.lessons[0] || null;
-  }
-
-  return { id, title: HOBBY_TITLES[id], day, lesson };
-};
 
 const STRIPE_STYLE: React.CSSProperties = {
   backgroundImage:
@@ -66,12 +29,11 @@ const STRIPE_STYLE: React.CSSProperties = {
 
 const SUGGESTIONS = ['Where do I start?', 'What gear do I need?', 'How long to learn?'];
 
-const CoachChat: React.FC<Props> = ({ hobbyContext }) => {
+const CoachChat: React.FC<Props> = ({ hobbyContext, activeJourneyDisplay }) => {
   const { chatHistory, isLoading, sendMessage } = useHobbyCoach(hobbyContext);
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const streak = getVisitStreak();
-  const activeJourney = getActiveJourney();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -109,14 +71,14 @@ const CoachChat: React.FC<Props> = ({ hobbyContext }) => {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto bg-cream px-4 py-4">
-        {activeJourney && (
+        {activeJourneyDisplay && (
           <div className="mb-4 flex flex-col items-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-olive/10 px-3 py-1 text-xs font-medium text-olive">
               <Clock className="h-3.5 w-3.5" />
-              Day {activeJourney.day} of your {activeJourney.title} journey
+              Day {activeJourneyDisplay.day} of your {activeJourneyDisplay.title} journey
             </span>
 
-            {activeJourney.lesson && (
+            {activeJourneyDisplay.lesson && (
               <div className="mt-3 flex w-full max-w-xs items-center gap-3 rounded-2xl bg-surface p-3 shadow-sm">
                 <div
                   className="h-12 w-12 shrink-0 rounded-xl bg-gradient-to-br from-terracotta/20 to-olive/10"
@@ -124,19 +86,19 @@ const CoachChat: React.FC<Props> = ({ hobbyContext }) => {
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink">
-                    Day {activeJourney.day} · {activeJourney.lesson.title}
+                    Day {activeJourneyDisplay.day} · {activeJourneyDisplay.lesson.title}
                   </p>
                   <p className="truncate text-xs text-taupe">
-                    ~{activeJourney.lesson.duration} · {activeJourney.lesson.type}
+                    ~{activeJourneyDisplay.lesson.duration} · {activeJourneyDisplay.lesson.type}
                   </p>
                 </div>
               </div>
             )}
 
-            {activeJourney.lesson && (
+            {activeJourneyDisplay.lesson && (
               <button
                 type="button"
-                onClick={() => navigate(`/hobby/${activeJourney.id}`)}
+                onClick={() => navigate(`/hobby/${activeJourneyDisplay.id}`)}
                 className="mt-2 w-full max-w-xs rounded-2xl bg-terracotta py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-terracotta-dark"
               >
                 View hobby →

@@ -20,8 +20,13 @@ import {
   type AppDispatch,
 } from '../store';
 import type { UserProfile } from '../store/slices/userSlice';
-import { setJourney } from '../store/slices/journeySlice';
+import {
+  setJourney,
+  setLearningProgress,
+  type LearningProgress,
+} from '../store/slices/journeySlice';
 import { fetchUserJourneys } from './useJourney';
+import { migrateLocalProgressIfNeeded } from '../utils/migrateLocalProgress';
 
 interface SyncUserCallableRequest {
   displayName: string;
@@ -31,6 +36,11 @@ interface SyncUserCallableRequest {
 interface SyncUserCallableResponse {
   isNewUser: boolean;
   data: UserProfile;
+}
+
+interface UpdateLearningProgressResponse {
+  success: boolean;
+  learningProgress: LearningProgress;
 }
 
 export interface UseAuthReturn {
@@ -73,6 +83,23 @@ const syncSignedInUser = async (
 
     const journeys = await fetchUserJourneys(firebaseUser.uid);
     journeys.forEach((journey) => dispatch(setJourney(journey)));
+
+    // Fire-and-forget: migrate localStorage progress → Firestore once.
+    // Must not block auth/profile loading or delay rendering.
+    void migrateLocalProgressIfNeeded(async (hobbyId, lessonId, completed) => {
+      const updateFn = httpsCallable<
+        { hobbyId: string; lessonId: string; completed: boolean },
+        UpdateLearningProgressResponse
+      >(functions, 'updateLearningProgress');
+      const result = await updateFn({ hobbyId, lessonId, completed });
+      dispatch(
+        setLearningProgress({
+          hobbyId,
+          progress: result.data.learningProgress,
+        })
+      );
+      return result.data;
+    });
   } catch {
     dispatch(setError('Failed to load user profile'));
   } finally {

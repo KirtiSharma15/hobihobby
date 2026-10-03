@@ -5,12 +5,12 @@
  * - Module overview with progress indicators
  * - Lesson list with completion status
  * - Continue where you left off
- * - Progress tracking (local storage)
+ * - Progress tracking (Firestore via Cloud Functions)
  */
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useLocalProgress } from '@/hooks/useLocalProgress';
+import { useLearningProgress } from '@/hooks/useLearningProgress';
 import { cn } from '@/utils/cn';
 import { getLearningPath } from '@/data/learningPaths';
 import type { LearningPath } from '@shared/types';
@@ -24,7 +24,8 @@ const LESSON_TYPE_ICONS: Record<string, string> = {
 export const LearningPathPage: React.FC = () => {
   const { hobbyId } = useParams<{ hobbyId: string }>();
   const navigate = useNavigate();
-  const { progress, getCompletedLessons, isLessonCompleted } = useLocalProgress(hobbyId || '');
+  const { getProgressForHobby, loadLearningProgress } = useLearningProgress();
+  const progress = hobbyId ? getProgressForHobby(hobbyId) : undefined;
   
   const [learningPath, setLearningPath] = useState<LearningPath | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,8 +46,15 @@ export const LearningPathPage: React.FC = () => {
     setIsLoading(false);
   }, [hobbyId]);
 
+  useEffect(() => {
+    if (!hobbyId) return;
+    void loadLearningProgress(hobbyId);
+  }, [hobbyId, loadLearningProgress]);
+
   // Calculate progress
-  const completedLessons = getCompletedLessons();
+  const completedLessons = progress?.completedLessonIds ?? [];
+  const isLessonCompleted = (lessonId: string): boolean =>
+    completedLessons.includes(lessonId);
   const totalLessons = learningPath?.totalLessons || 0;
   const progressPercent = totalLessons > 0 
     ? Math.round((completedLessons.length / totalLessons) * 100) 

@@ -1,0 +1,63 @@
+{
+  "hobbyId": "yoga",
+  "hobbyName": "Yoga",
+  "totalDays": 365,
+  "days": [
+    {
+      "day": 1,
+      "title": "Breathe with intention",
+      "description": "Find a quiet spot. Sit comfortably. Practice 5 minutes of focused belly breathing, inhaling through your nose and exhaling slowly through your mouth.",
+      "duration": "10 min",
+      "type": "practice",
+      "tip": "Place one hand on your belly to feel its rise and fall"
+    },
+    {
+      "day": 2,
+      "title": "Sun Salutation A - Watch & Learn",
+      "description": "Watch a beginner's video (e.g., Yoga with Adriene) demonstrating Sun Salutation A. Focus on understanding the sequence and breath cues.",
+      "duration": "20 min",
+      "type": "watch + learn",
+      "tip": "Don't try to perfectly mirror the movements; just observe the flow"
+    },
+    {
+      "day": 3,
+      "title": "First Downward-Facing Dog",
+      "description": "Try the Downward-Facing Dog pose. Focus on creating a long spine and bending your knees as much as needed.",
+      "duration": "15 min",
+      "type": "practice",
+      "tip": "Spread your fingers wide and press through your palms to protect your wrists"
+    },
+    {
+      "day": 4,
+      "title": "Mountain to Forward Fold",
+      "description": "Practice transitioning smoothly from Mountain Pose (Tadasana) to Forward Fold (Uttanasana) 5-7 times, coordinating with your breath.",
+      "duration": "20 min",
+      "type": "practice",
+      "tip": "Keep a slight bend in your knees in Forward Fold to protect your hamstrings and lower back"
+    },
+    {
+      "day": 5,
+      "title": "Warrior II introduction",
+      "description": "Learn and practice Warrior II (Virabhadrasana II). Pay attention to foot placement and arm alignment. Hold for 3-5 breaths per side.",
+      "duration": "25 min",
+      "type": "learn + practice",
+      "tip": "Ensure your front knee is stacked directly over your ankle, not past it"
+    },
+    {
+      "day": 6,
+      "title": "Short flow combining poses",
+      "description": "Attempt a short sequence: Mountain Pose -> Forward Fold -> Downward-Facing Dog -> Warrior II (both sides) -> Mountain Pose. Repeat twice.",
+      "duration": "30 min",
+      "type": "flow practice",
+      "tip": "Move with your breath; don't hold your breath during transitions"
+    },
+    {
+      "day": 7,
+      "title": "Week 1 check-in",
+      "description": "Reflect on your experience this week. Which poses felt good? What was challenging? Note any physical sensations or mental shifts.",
+      "duration": "15 min",
+      "type": "reflect",
+      "tip": "Journaling your experience can help track progress and identify areas for focus"
+    }
+  ]
+}
