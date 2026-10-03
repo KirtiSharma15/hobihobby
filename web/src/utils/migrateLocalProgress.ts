@@ -8,7 +8,7 @@
  * Completed lessons are written with setAsCurrent false so a null current
  * lesson stays null. The saved current lesson, when present, is written last.
  */
-const MIGRATION_FLAG = 'hobihobby_progress_migrated_v1';
+const MIGRATION_FLAG = 'hobihobby_progress_migrated_v2';
 
 function uniqueLessonIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
