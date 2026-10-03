@@ -865,6 +865,363 @@ exports.findNearbyPlaces = onCall(
   }
 );
 
+const MOOD_RECOMMENDATION_MOODS = new Set([
+  'stressed',
+  'happy',
+  'bored',
+  'tired',
+  'energetic',
+  'sad',
+  'anxious',
+  'creative',
+  'social',
+  'focused',
+]);
+
+const MOOD_ENERGY_LEVELS = new Set(['low', 'medium', 'high']);
+const MAX_MOOD_CANDIDATES = 20;
+const MIN_USEFUL_MOOD_CANDIDATES = 3;
+
+const CATEGORY_EMOJI = {
+  'Art & Craft': '🎨',
+  Fitness: '💪',
+  Music: '🎵',
+  Nature: '🌿',
+  'Mind Games': '♟️',
+};
+
+const MOOD_EMOJI = {
+  stressed: '😤',
+  happy: '😊',
+  bored: '😑',
+  tired: '😴',
+  energetic: '⚡',
+  sad: '😢',
+  anxious: '😰',
+  creative: '🎨',
+  social: '🤝',
+  focused: '🎯',
+};
+
+function parseDurationMinutes(duration) {
+  if (typeof duration !== 'string') return null;
+  const match = duration.trim().match(/^(\d+)\s*(minutes|minute|mins|min)\b/i);
+  if (!match) return null;
+  const minutes = Number(match[1]);
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : null;
+}
+
+function timeFitRank(candidate) {
+  if (candidate.fitsAvailableTime === true) return 0;
+  if (candidate.fitsAvailableTime === null) return 1;
+  return 2;
+}
+
+function compareMoodCandidates(a, b) {
+  const byTime = timeFitRank(a) - timeFitRank(b);
+  if (byTime !== 0) return byTime;
+  return a.hobbyId < b.hobbyId ? -1 : a.hobbyId > b.hobbyId ? 1 : 0;
+}
+
+function usableReviewedTask(days, day) {
+  const task = findReviewedJourneyTask(days, day);
+  if (!task) return null;
+  if (!task.title.trim() && !task.description.trim()) return null;
+  return task;
+}
+
+function recommendationEmoji(hobbyEmoji, category, mood) {
+  if (hobbyEmoji) return hobbyEmoji;
+  if (category && CATEGORY_EMOJI[category]) return CATEGORY_EMOJI[category];
+  return MOOD_EMOJI[mood] || '🎯';
+}
+
+function makeMoodCandidate({
+  hobbyId,
+  hobbyName,
+  task,
+  source,
+  isFromJourney,
+  journeyDay,
+  availableTime,
+  emoji,
+  category,
+}) {
+  const durationMinutes = parseDurationMinutes(task.duration);
+  return {
+    candidateId: `${hobbyId}:${source}:${journeyDay}`,
+    hobbyId,
+    hobbyName,
+    title: task.title.trim(),
+    description: task.description.trim(),
+    duration: task.duration.trim(),
+    durationMinutes,
+    type: task.type.trim(),
+    tip: task.tip.trim(),
+    isFromJourney,
+    journeyDay: isFromJourney ? journeyDay : null,
+    fitsAvailableTime: durationMinutes == null ? null : durationMinutes <= availableTime,
+    emoji,
+    category,
+  };
+}
+
+function takeMoodCandidatePool(groups) {
+  const pool = [];
+  for (const group of groups) {
+    const sorted = [...group].sort(compareMoodCandidates);
+    for (const candidate of sorted) {
+      if (pool.length >= MAX_MOOD_CANDIDATES) return pool;
+      pool.push(candidate);
+    }
+  }
+  return pool;
+}
+
+async function loadMoodCandidateRecords(uid) {
+  let savedSnap;
+  let journeysSnap;
+  let templatesSnap;
+  try {
+    [savedSnap, journeysSnap, templatesSnap] = await Promise.all([
+      db.collection('users').doc(uid).collection('savedHobbies').get(),
+      db.collection('users').doc(uid).collection('journeys').get(),
+      db.collection('journeyTemplates').get(),
+    ]);
+  } catch (error) {
+    console.error('getMoodRecommendations Firestore read failed:', error?.message || error);
+    throw new HttpsError('internal', 'Failed to load mood recommendations');
+  }
+
+  const templatesById = new Map();
+  templatesSnap.forEach((docSnap) => {
+    templatesById.set(docSnap.id, docSnap.data() || {});
+  });
+
+  const hobbyIds = new Set([
+    ...savedSnap.docs.map((docSnap) => docSnap.id),
+    ...journeysSnap.docs.map((docSnap) => docSnap.id),
+    ...templatesById.keys(),
+  ]);
+
+  const hobbiesById = new Map();
+  const hobbyRefs = [...hobbyIds]
+    .filter((id) => typeof id === 'string' && id.trim())
+    .map((id) => db.collection('hobbies').doc(id));
+  if (hobbyRefs.length > 0) {
+    try {
+      const hobbySnaps = await db.getAll(...hobbyRefs);
+      hobbySnaps.forEach((docSnap) => {
+        hobbiesById.set(docSnap.id, docSnap.exists ? (docSnap.data() || {}) : null);
+      });
+    } catch (error) {
+      console.error('getMoodRecommendations hobby catalog read failed:', error?.message || error);
+      throw new HttpsError('internal', 'Failed to load mood recommendations');
+    }
+  }
+
+  return {
+    savedIds: savedSnap.docs.map((docSnap) => docSnap.id),
+    journeys: journeysSnap.docs.map((docSnap) => ({
+      hobbyId: docSnap.id,
+      data: docSnap.data() || {},
+    })),
+    templatesById,
+    hobbiesById,
+  };
+}
+
+function canonicalMoodHobby(hobbyId, templatesById, hobbiesById) {
+  const template = templatesById.get(hobbyId);
+  const hobby = hobbiesById.get(hobbyId);
+  const hasTemplate = Boolean(template);
+  const hasCatalog = Boolean(hobby);
+  if (!hasTemplate && !hasCatalog) return null;
+  const hobbyName = firstNonEmptyString(hobby?.name, template?.hobbyName);
+  if (!hobbyName || !hasTemplate) return null;
+  return {
+    hobbyId,
+    hobbyName,
+    template,
+    emoji: typeof hobby?.emoji === 'string' ? hobby.emoji.trim() : '',
+    category: typeof hobby?.category === 'string' ? hobby.category.trim() : '',
+  };
+}
+
+function buildMoodCandidates({ records, availableTime }) {
+  const { savedIds, journeys, templatesById, hobbiesById } = records;
+  const usedHobbyIds = new Set();
+  const journeyCandidates = [];
+  const savedCandidates = [];
+
+  const sortedJourneys = [...journeys].sort((a, b) => a.hobbyId.localeCompare(b.hobbyId));
+  for (const journey of sortedJourneys) {
+    const canonical = canonicalMoodHobby(journey.hobbyId, templatesById, hobbiesById);
+    if (!canonical || usedHobbyIds.has(canonical.hobbyId)) continue;
+    const currentDay = Number.isInteger(journey.data.currentDay) ? journey.data.currentDay : null;
+    const task = usableReviewedTask(canonical.template.days, currentDay);
+    if (!task) continue;
+    usedHobbyIds.add(canonical.hobbyId);
+    journeyCandidates.push(makeMoodCandidate({
+      hobbyId: canonical.hobbyId,
+      hobbyName: canonical.hobbyName,
+      task,
+      source: 'journey',
+      isFromJourney: true,
+      journeyDay: currentDay,
+      availableTime,
+      emoji: canonical.emoji,
+      category: canonical.category,
+    }));
+  }
+
+  for (const hobbyId of [...savedIds].sort()) {
+    if (usedHobbyIds.has(hobbyId)) continue;
+    const canonical = canonicalMoodHobby(hobbyId, templatesById, hobbiesById);
+    if (!canonical) continue;
+    const task = usableReviewedTask(canonical.template.days, 1);
+    if (!task) continue;
+    usedHobbyIds.add(canonical.hobbyId);
+    savedCandidates.push(makeMoodCandidate({
+      hobbyId: canonical.hobbyId,
+      hobbyName: canonical.hobbyName,
+      task,
+      source: 'saved',
+      isFromJourney: false,
+      journeyDay: 1,
+      availableTime,
+      emoji: canonical.emoji,
+      category: canonical.category,
+    }));
+  }
+
+  const personal = [...journeyCandidates, ...savedCandidates];
+  const usefulCount = personal.filter((candidate) => candidate.fitsAvailableTime !== false).length;
+  const fallbackCandidates = [];
+  if (usefulCount < MIN_USEFUL_MOOD_CANDIDATES) {
+    const templateIds = [...templatesById.keys()].sort();
+    for (const hobbyId of templateIds) {
+      if (usedHobbyIds.has(hobbyId)) continue;
+      const canonical = canonicalMoodHobby(hobbyId, templatesById, hobbiesById);
+      if (!canonical) continue;
+      const task = usableReviewedTask(canonical.template.days, 1);
+      if (!task) continue;
+      usedHobbyIds.add(canonical.hobbyId);
+      fallbackCandidates.push(makeMoodCandidate({
+        hobbyId: canonical.hobbyId,
+        hobbyName: canonical.hobbyName,
+        task,
+        source: 'template',
+        isFromJourney: false,
+        journeyDay: 1,
+        availableTime,
+        emoji: canonical.emoji,
+        category: canonical.category,
+      }));
+    }
+  }
+
+  return takeMoodCandidatePool([journeyCandidates, savedCandidates, fallbackCandidates]);
+}
+
+function moodCandidateForPrompt(candidate) {
+  return {
+    candidateId: candidate.candidateId,
+    hobbyName: candidate.hobbyName,
+    title: candidate.title,
+    description: candidate.description,
+    duration: candidate.duration,
+    durationMinutes: candidate.durationMinutes,
+    type: candidate.type,
+    tip: candidate.tip,
+    isFromJourney: candidate.isFromJourney,
+    journeyDay: candidate.journeyDay,
+    fitsAvailableTime: candidate.fitsAvailableTime,
+  };
+}
+
+function buildMoodSelectionPrompt() {
+  return [
+    'You select reviewed HobiHobby activities for the user\'s current mood.',
+    'Return ONLY valid JSON with no markdown, using this shape:',
+    '{',
+    '  "moodInsight": "A short useful sentence",',
+    '  "selections": [',
+    '    { "candidateId": "id from the supplied list", "reason": "Why this reviewed activity suits the mood" }',
+    '  ]',
+    '}',
+    'Rules:',
+    '- Select at most 3 candidate IDs from the supplied list.',
+    '- Never create a candidate id.',
+    '- Never rewrite or invent the activity.',
+    '- Select only supplied candidate IDs.',
+    '- Prefer active-journey candidates when they reasonably match the mood.',
+    '- Prefer candidates with fitsAvailableTime true.',
+    '- Candidates with fitsAvailableTime null may still be selected.',
+    '- Do not assume a shorter version of a reviewed activity exists.',
+    '- reason must explain the supplied activity. Do not describe a different activity.',
+  ].join('\n');
+}
+
+function readMoodSelections(raw, candidatesById) {
+  const cleaned = String(raw).replace(/```json|```/g, '').trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (error) {
+    console.error('Failed to parse Gemini response as JSON (getMoodRecommendations):', raw);
+    throw new HttpsError('internal', 'Failed to generate recommendations');
+  }
+
+  const moodInsight = parsed && typeof parsed.moodInsight === 'string' && parsed.moodInsight.trim()
+    ? parsed.moodInsight.trim()
+    : 'Here are reviewed activities that fit how you feel right now.';
+  const selections = parsed && Array.isArray(parsed.selections) ? parsed.selections : [];
+  const seen = new Set();
+  const chosen = [];
+  const ignoredIds = [];
+
+  for (const selection of selections) {
+    const candidateId = selection && typeof selection.candidateId === 'string'
+      ? selection.candidateId.trim()
+      : '';
+    if (!candidateId || !candidatesById.has(candidateId)) {
+      if (candidateId) ignoredIds.push(candidateId);
+      continue;
+    }
+    if (seen.has(candidateId)) continue;
+    seen.add(candidateId);
+    const reason = selection && typeof selection.reason === 'string' && selection.reason.trim()
+      ? selection.reason.trim()
+      : 'This reviewed activity fits how you feel right now.';
+    chosen.push({ candidate: candidatesById.get(candidateId), reason });
+    if (chosen.length === 3) break;
+  }
+
+  if (ignoredIds.length > 0) {
+    console.error('getMoodRecommendations ignored unknown candidate ids:', ignoredIds);
+  }
+
+  return { moodInsight, chosen };
+}
+
+function toPublicMoodRecommendation(candidate, reason, mood, intensity) {
+  const recommendation = {
+    hobbyId: candidate.hobbyId,
+    hobbyName: candidate.hobbyName,
+    activity: candidate.title || candidate.description,
+    duration: candidate.duration,
+    reason,
+    isFromJourney: candidate.isFromJourney,
+    energyLevel: intensity,
+    emoji: recommendationEmoji(candidate.emoji, candidate.category, mood),
+  };
+  if (candidate.isFromJourney && Number.isInteger(candidate.journeyDay)) {
+    recommendation.journeyDay = candidate.journeyDay;
+  }
+  return recommendation;
+}
+
 // ─── AI: Mood-based recommendations (Sprint 5) ────────────────────────────
 exports.getMoodRecommendations = onCall(
   { secrets: ['GEMINI_API_KEY'] },
@@ -873,84 +1230,50 @@ exports.getMoodRecommendations = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const {
-      mood,
-      intensity = 'medium',
-      availableTime = 30,
-      savedHobbies,
-      activeJourneys,
-    } = request.data ?? {};
-
-    if (!mood || typeof mood !== 'string') {
+    const { mood, intensity, availableTime } = request.data ?? {};
+    if (typeof mood !== 'string' || !MOOD_RECOMMENDATION_MOODS.has(mood)) {
       throw new HttpsError('invalid-argument', 'mood is required');
     }
 
-    const prompt = `You are a mood-based hobby recommendation 
-engine for HobiHobby.
+    const resolvedIntensity = MOOD_ENERGY_LEVELS.has(intensity) ? intensity : 'medium';
+    const resolvedTime = Number.isFinite(availableTime) && availableTime > 0
+      ? availableTime
+      : 30;
 
-User's current mood: "${mood}" (intensity: ${intensity})
-Available time right now: ${availableTime} minutes
-Their saved hobbies: ${JSON.stringify(savedHobbies || [])}
-Their active journeys: ${JSON.stringify(activeJourneys || [])}
-
-Based on this mood and context, recommend 3 hobby activities 
-they can do RIGHT NOW.
-
-Rules:
-- Prefer activities from their saved hobbies or active journeys
-- Match the activity duration to their available time
-- Match the energy level to their mood intensity
-- If they have an active journey suggest the next task in it
-- Be specific — not "do some painting" but 
-  "spend 20 mins sketching simple shapes from your window"
-
-Return ONLY valid JSON with no markdown:
-{
-  "moodInsight": "One sentence about why this mood calls for these activities",
-  "recommendations": [
-    {
-      "hobbyName": "Watercolor Painting",
-      "activity": "Specific activity to do right now",
-      "duration": "20 mins",
-      "reason": "Why this suits your current mood",
-      "isFromJourney": true,
-      "journeyDay": 5,
-      "energyLevel": "low",
-      "emoji": "🎨"
-    }
-  ]
-}`;
-
-    let response;
-    try {
-      response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 1000,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }
-      );
-    } catch (error) {
-      const message = error.response?.data?.error?.message || error.message || 'Gemini API request failed';
-      console.error('Gemini API error (getMoodRecommendations):', message, error.response?.data);
-      throw new HttpsError('internal', message);
+    const records = await loadMoodCandidateRecords(request.auth.uid);
+    const candidates = buildMoodCandidates({ records, availableTime: resolvedTime });
+    if (candidates.length === 0) {
+      return {
+        moodInsight: 'No reviewed activities are available yet. You can still explore hobbies and start a journey.',
+        recommendations: [],
+      };
     }
 
-    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!raw) {
-      throw new HttpsError('internal', 'No response from Gemini');
-    }
+    const candidatesById = new Map(candidates.map((candidate) => [candidate.candidateId, candidate]));
+    const reply = await callGemini({
+      systemText: buildMoodSelectionPrompt(),
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: JSON.stringify({
+            mood,
+            intensity: resolvedIntensity,
+            availableTime: resolvedTime,
+            candidates: candidates.map(moodCandidateForPrompt),
+          }),
+        }],
+      }],
+      temperature: 0.4,
+      maxOutputTokens: 800,
+      thinkingBudget: 0,
+    });
 
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    try {
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('Failed to parse Gemini response as JSON (getMoodRecommendations):', raw);
-      throw new HttpsError('internal', 'Failed to generate recommendations');
-    }
+    const { moodInsight, chosen } = readMoodSelections(reply, candidatesById);
+    return {
+      moodInsight,
+      recommendations: chosen.map(({ candidate, reason }) => (
+        toPublicMoodRecommendation(candidate, reason, mood, resolvedIntensity)
+      )),
+    };
   }
 );

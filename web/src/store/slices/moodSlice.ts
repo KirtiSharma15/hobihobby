@@ -13,6 +13,7 @@ export type MoodType =
   | 'focused';
 
 export interface MoodRecommendation {
+  hobbyId: string;
   hobbyName: string;
   activity: string;
   duration: string;

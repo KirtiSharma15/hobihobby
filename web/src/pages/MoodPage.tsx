@@ -33,9 +33,6 @@ const TIME_OPTIONS: Array<{ label: string; minutes: number }> = [
   { label: '2+ hours', minutes: 120 },
 ];
 
-const slugify = (name: string): string =>
-  name.toLowerCase().trim().replace(/\s+/g, '-');
-
 const MoodPage: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -108,11 +105,10 @@ const MoodPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const hobbyPath = slugify(rec.hobbyName);
                     navigate(
                       rec.isFromJourney
-                        ? `/hobby/${hobbyPath}/journey`
-                        : `/hobby/${hobbyPath}`
+                        ? `/hobby/${rec.hobbyId}/journey`
+                        : `/hobby/${rec.hobbyId}`
                     );
                   }}
                   className="flex-1 rounded-2xl bg-[#C4522A] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#C4522A]/90"

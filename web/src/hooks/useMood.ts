@@ -17,8 +17,6 @@ interface MoodRecommendationsRequest {
   mood: string;
   intensity?: 'low' | 'medium' | 'high';
   availableTime?: number;
-  savedHobbies?: string[];
-  activeJourneys?: Array<{ hobbyName: string; currentDay: number }>;
 }
 
 interface MoodRecommendationsResponse {
@@ -48,8 +46,6 @@ export const useMood = (): UseMoodReturn => {
   const result = useAppSelector((state) => state.mood.result);
   const isLoading = useAppSelector((state) => state.mood.isLoading);
   const error = useAppSelector((state) => state.mood.error);
-  const savedHobbyIds = useAppSelector((state) => state.hobbies.savedHobbyIds);
-  const activeJourneys = useAppSelector((state) => state.journey.activeJourneys);
 
   const selectMood = (mood: MoodType): void => {
     dispatch(clearMoodResult());
@@ -85,11 +81,6 @@ export const useMood = (): UseMoodReturn => {
         mood: currentMood,
         intensity,
         availableTime,
-        savedHobbies: savedHobbyIds,
-        activeJourneys: Object.values(activeJourneys).map((j) => ({
-          hobbyName: j.hobbyName,
-          currentDay: j.currentDay,
-        })),
       });
 
       const moodResult: MoodResult = {
