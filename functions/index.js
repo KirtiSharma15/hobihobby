@@ -207,8 +207,11 @@ function firstNonEmptyString(...values) {
 }
 
 /**
- * Authoritative coach context for one hobby. Missing documents stay null
- * so the chat can continue without a journey or a reviewed template.
+ * Authoritative coach context for one hobby.
+ * Hobby identity comes only from server-controlled content:
+ * hobbies/{hobbyId} or journeyTemplates/{hobbyId}.
+ * A user journey may supply progress after that check, not the hobby name.
+ * Returns null when neither canonical document exists.
  */
 async function loadHobbyCoachContext(uid, hobbyId) {
   const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
@@ -229,6 +232,11 @@ async function loadHobbyCoachContext(uid, hobbyId) {
     throw new HttpsError('internal', 'Failed to load coach context');
   }
 
+  const hasCanonicalHobby = templateSnap.exists || hobbySnap.exists;
+  if (!hasCanonicalHobby) {
+    return null;
+  }
+
   const journey = journeySnap.exists ? (journeySnap.data() ?? {}) : null;
   const template = templateSnap.exists ? (templateSnap.data() ?? {}) : null;
   const hobby = hobbySnap.exists ? (hobbySnap.data() ?? {}) : null;
@@ -241,7 +249,7 @@ async function loadHobbyCoachContext(uid, hobbyId) {
 
   return {
     hobbyId,
-    hobbyName: firstNonEmptyString(template?.hobbyName, journey?.hobbyName, hobby?.name),
+    hobbyName: firstNonEmptyString(hobby?.name, template?.hobbyName),
     currentDay,
     streak: journey ? (Number.isFinite(journey.streak) ? journey.streak : 0) : null,
     longestStreak: journey
@@ -270,7 +278,7 @@ Ask them what hobby they want to explore if they haven't told you yet, then give
 Max 3 short paragraphs.`;
   }
 
-  const hobbyLabel = context.hobbyName || context.hobbyId;
+  const hobbyLabel = context.hobbyName || 'this hobby';
   const lines = [
     `You are an expert hobby coach on HobiHobby specialising in ${hobbyLabel}.`,
     '',
