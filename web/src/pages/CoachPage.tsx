@@ -18,7 +18,8 @@ const CoachPage: React.FC = () => {
         new Date(a.lastActivityAt).getTime()
     )[0];
 
-  const hobbyContext = mostRecentJourney
+  const activeHobbyId = mostRecentJourney?.hobbyId;
+  const hobbyDisplayLabel = mostRecentJourney
     ? `${mostRecentJourney.hobbyName}, Day ${mostRecentJourney.currentDay} of 365`
     : undefined;
 
@@ -50,7 +51,7 @@ const CoachPage: React.FC = () => {
       }
     : null;
 
-  const SUGGESTED_QUESTIONS = hobbyContext
+  const SUGGESTED_QUESTIONS = hobbyDisplayLabel
     ? [
         `Where do I start with ${mostRecentJourney?.hobbyName}?`,
         'What should I focus on today?',
@@ -64,7 +65,7 @@ const CoachPage: React.FC = () => {
         'What are popular hobbies in UAE?',
       ];
 
-  const { sendMessage } = useHobbyCoach(hobbyContext);
+  const { sendMessage } = useHobbyCoach(activeHobbyId);
 
   return (
     <div className="bg-cream">
@@ -88,7 +89,11 @@ const CoachPage: React.FC = () => {
 
         {/* Chat window */}
         <div className="flex h-[calc(100vh-9rem)] w-full flex-col overflow-hidden bg-surface shadow-2xl md:h-[calc(100vh-4rem)] md:max-h-[700px] md:max-w-2xl md:rounded-2xl">
-          <CoachChat hobbyContext={hobbyContext} activeJourneyDisplay={activeJourneyDisplay} />
+          <CoachChat
+            activeHobbyId={activeHobbyId}
+            hobbyDisplayLabel={hobbyDisplayLabel}
+            activeJourneyDisplay={activeJourneyDisplay}
+          />
         </div>
       </div>
     </div>

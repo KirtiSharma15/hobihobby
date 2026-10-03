@@ -9,7 +9,7 @@ import {
     Message,
 } from '../store/slices/aiSlice';
 
-export const useHobbyCoach = (hobbyContext?: string) => {
+export const useHobbyCoach = (hobbyId?: string) => {
     const dispatch = useAppDispatch();
     const chatHistory = useAppSelector((state) => state.ai.chatHistory);
     const isLoading = useAppSelector((state) => state.ai.isCoachLoading);
@@ -31,13 +31,13 @@ export const useHobbyCoach = (hobbyContext?: string) => {
 
             try {
                 const hobbyCoachFn = httpsCallable
-                    <{ messages: Message[]; hobbyContext?: string },
+                    <{ messages: Message[]; hobbyId?: string },
                         { reply: string }
                     >(functions, 'hobbyCoach');
 
                 const result = await hobbyCoachFn({
                     messages: [...chatHistory, userMessage],
-                    hobbyContext,
+                    ...(hobbyId ? { hobbyId } : {}),
                 });
 
                 const assistantMessage: Message = {
@@ -53,7 +53,7 @@ export const useHobbyCoach = (hobbyContext?: string) => {
                 dispatch(setCoachLoading(false));
             }
         },
-        [chatHistory, dispatch, hobbyContext]
+        [chatHistory, dispatch, hobbyId]
     );
 
     return { chatHistory, isLoading, sendMessage };

@@ -121,7 +121,7 @@ export const JourneyPage: React.FC = () => {
   const upcomingDays =
     currentTemplate?.filter((d) => d.day > currentDay && d.day <= currentDay + 3) ?? [];
 
-  const hobbyContext = journey
+  const hobbyDisplayLabel = journey
     ? `${journey.hobbyName}, Day ${journey.currentDay} of 365. 
 Today's task: ${todaysTask?.title}`
     : undefined;
@@ -244,9 +244,9 @@ Today's task: ${todaysTask?.title}`
         )}
 
         {/* Journey-aware coach */}
-        {hobbyContext && (
+        {hobbyDisplayLabel && (
           <div className="mt-6 flex h-[420px] flex-col overflow-hidden rounded-2xl bg-surface shadow-sm">
-            <CoachChat hobbyContext={hobbyContext} />
+            <CoachChat activeHobbyId={hobbyId} hobbyDisplayLabel={hobbyDisplayLabel} />
           </div>
         )}
       </div>

@@ -9,7 +9,9 @@ import CoachMessage from './CoachMessage';
 import CoachInput from './CoachInput';
 
 interface Props {
-  hobbyContext?: string;
+  activeHobbyId?: string;
+  /** Display-only greeting text. Not sent to the coach callable. */
+  hobbyDisplayLabel?: string;
   activeJourneyDisplay?: {
     id: string;
     title: string;
@@ -29,8 +31,12 @@ const STRIPE_STYLE: React.CSSProperties = {
 
 const SUGGESTIONS = ['Where do I start?', 'What gear do I need?', 'How long to learn?'];
 
-const CoachChat: React.FC<Props> = ({ hobbyContext, activeJourneyDisplay }) => {
-  const { chatHistory, isLoading, sendMessage } = useHobbyCoach(hobbyContext);
+const CoachChat: React.FC<Props> = ({
+  activeHobbyId,
+  hobbyDisplayLabel,
+  activeJourneyDisplay,
+}) => {
+  const { chatHistory, isLoading, sendMessage } = useHobbyCoach(activeHobbyId);
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
   const streak = getVisitStreak();
@@ -114,8 +120,8 @@ const CoachChat: React.FC<Props> = ({ hobbyContext, activeJourneyDisplay }) => {
             </div>
             <p className="font-semibold text-ink">Hi! I&apos;m your HobiCoach</p>
             <p className="mt-1 text-sm text-taupe">
-              {hobbyContext
-                ? `Ask me anything about ${hobbyContext}!`
+              {hobbyDisplayLabel
+                ? `Ask me anything about ${hobbyDisplayLabel}!`
                 : 'Ask me anything about hobbies!'}
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">

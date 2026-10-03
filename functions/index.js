@@ -184,6 +184,148 @@ Return top 5 hobby recommendations ordered by matchScore descending.`;
   }
 );
 
+function findReviewedJourneyTask(days, currentDay) {
+  if (!Array.isArray(days) || !Number.isInteger(currentDay)) return null;
+  const match = days.find((entry) => entry && Number(entry.day) === currentDay);
+  if (!match || typeof match !== 'object') return null;
+  const text = (value) => (typeof value === 'string' ? value : '');
+  return {
+    day: currentDay,
+    title: text(match.title),
+    description: text(match.description),
+    duration: text(match.duration),
+    type: text(match.type),
+    tip: text(match.tip),
+  };
+}
+
+function firstNonEmptyString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+/**
+ * Authoritative coach context for one hobby. Missing documents stay null
+ * so the chat can continue without a journey or a reviewed template.
+ */
+async function loadHobbyCoachContext(uid, hobbyId) {
+  const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
+  const templateRef = db.collection('journeyTemplates').doc(hobbyId);
+  const hobbyRef = db.collection('hobbies').doc(hobbyId);
+
+  let journeySnap;
+  let templateSnap;
+  let hobbySnap;
+  try {
+    [journeySnap, templateSnap, hobbySnap] = await Promise.all([
+      journeyRef.get(),
+      templateRef.get(),
+      hobbyRef.get(),
+    ]);
+  } catch (error) {
+    console.error('hobbyCoach Firestore read failed:', hobbyId, error?.message || error);
+    throw new HttpsError('internal', 'Failed to load coach context');
+  }
+
+  const journey = journeySnap.exists ? (journeySnap.data() ?? {}) : null;
+  const template = templateSnap.exists ? (templateSnap.data() ?? {}) : null;
+  const hobby = hobbySnap.exists ? (hobbySnap.data() ?? {}) : null;
+
+  const currentDay = journey && Number.isInteger(journey.currentDay) ? journey.currentDay : null;
+  const learning = journey?.learningProgress;
+  const completedLessonIds = Array.isArray(learning?.completedLessonIds)
+    ? learning.completedLessonIds
+    : [];
+
+  return {
+    hobbyId,
+    hobbyName: firstNonEmptyString(template?.hobbyName, journey?.hobbyName, hobby?.name),
+    currentDay,
+    streak: journey ? (Number.isFinite(journey.streak) ? journey.streak : 0) : null,
+    longestStreak: journey
+      ? (Number.isFinite(journey.longestStreak) ? journey.longestStreak : 0)
+      : null,
+    completedDaysCount: journey
+      ? (Array.isArray(journey.completedDays) ? journey.completedDays.length : 0)
+      : null,
+    currentJourneyTask: template ? findReviewedJourneyTask(template.days, currentDay) : null,
+    learningProgress: learning && typeof learning === 'object'
+      ? {
+          currentLessonId: typeof learning.currentLessonId === 'string'
+            ? learning.currentLessonId
+            : null,
+          completedLessonCount: completedLessonIds.length,
+        }
+      : null,
+  };
+}
+
+function buildHobbyCoachSystemText(context) {
+  if (!context) {
+    return `You are an enthusiastic hobby coach on HobiHobby.
+Help users discover and learn hobbies.
+Ask them what hobby they want to explore if they haven't told you yet, then give specific advice.
+Max 3 short paragraphs.`;
+  }
+
+  const hobbyLabel = context.hobbyName || context.hobbyId;
+  const lines = [
+    `You are an expert hobby coach on HobiHobby specialising in ${hobbyLabel}.`,
+    '',
+    `The user is currently learning ${hobbyLabel}.`,
+    'Never ask them what hobby they want to explore — you already know.',
+    '',
+  ];
+
+  if (context.currentDay != null) {
+    lines.push('Journey state:');
+    lines.push(`- Current day: ${context.currentDay}`);
+    lines.push(`- Streak: ${context.streak} days`);
+    lines.push(`- Longest streak: ${context.longestStreak} days`);
+    lines.push(`- Completed journey days: ${context.completedDaysCount}`);
+    lines.push('');
+  } else {
+    lines.push('The user has no journey started for this hobby.');
+    lines.push('Give general guidance for this hobby when they ask how to begin or what to practice.');
+    lines.push('');
+  }
+
+  if (context.currentJourneyTask) {
+    const task = context.currentJourneyTask;
+    lines.push("Today's reviewed HobiHobby task:");
+    lines.push(`Title: ${task.title}`);
+    lines.push(`Description: ${task.description}`);
+    lines.push(`Duration: ${task.duration}`);
+    lines.push(`Type: ${task.type}`);
+    lines.push(`Tip: ${task.tip}`);
+    lines.push('');
+    lines.push(
+      'Use this task when the user asks about "today\'s task", "what should I do today", "this exercise", etc.'
+    );
+    lines.push('Do not replace it with an invented task.');
+  } else {
+    lines.push("No reviewed HobiHobby task is available for the user's current day.");
+    lines.push('Do not invent a HobiHobby journey task.');
+    lines.push('You may still give general hobby guidance if asked.');
+  }
+
+  if (context.learningProgress) {
+    const lessonId = context.learningProgress.currentLessonId || 'none';
+    lines.push('');
+    lines.push('Learning progress:');
+    lines.push(`- Current lesson id: ${lessonId}`);
+    lines.push(`- Completed lesson count: ${context.learningProgress.completedLessonCount}`);
+    lines.push('Do not infer a lesson title or lesson content from the lesson id.');
+  }
+
+  lines.push('');
+  lines.push('Be encouraging, specific, and practical.');
+  lines.push('Max 3 short paragraphs.');
+  return lines.join('\n');
+}
+
 // ─── AI: Hobby Coach chat ─────────────────────────────────────────────────
 exports.hobbyCoach = onCall(
   { secrets: ['GEMINI_API_KEY'] },
@@ -192,30 +334,19 @@ exports.hobbyCoach = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const { messages, hobbyContext } = request.data ?? {};
+    const { messages, hobbyId } = request.data ?? {};
 
-    const systemText = hobbyContext
-      ? `You are an expert hobby coach on HobiHobby 
-     specialising in ${hobbyContext}.
-     
-     IMPORTANT: You already know the user is learning 
-     ${hobbyContext}. Never ask them what hobby they want 
-     to explore — you already know.
-     
-     When they ask "where do I start" or similar, give 
-     specific actionable steps for ${hobbyContext} directly.
-     
-     Be encouraging, specific, and practical.
-     Max 3 short paragraphs.`
-      : `You are an enthusiastic hobby coach on HobiHobby.
-     Help users discover and learn hobbies.
-     Ask them what hobby they want to explore if they 
-     haven't told you yet, then give specific advice.
-     Max 3 short paragraphs.`;
+    let coachContext = null;
+    if (hobbyId !== undefined && hobbyId !== null) {
+      if (typeof hobbyId !== 'string' || hobbyId.trim().length === 0) {
+        throw new HttpsError('invalid-argument', 'hobbyId must be a non-empty string');
+      }
+      coachContext = await loadHobbyCoachContext(request.auth.uid, hobbyId.trim());
+    }
 
     const contents = buildGeminiContents(messages);
     const reply = await callGemini({
-      systemText,
+      systemText: buildHobbyCoachSystemText(coachContext),
       contents,
       temperature: 0.8,
       maxOutputTokens: 1000,
