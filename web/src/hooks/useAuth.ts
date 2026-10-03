@@ -86,12 +86,22 @@ const syncSignedInUser = async (
 
     // Fire-and-forget: migrate localStorage progress → Firestore once.
     // Must not block auth/profile loading or delay rendering.
-    void migrateLocalProgressIfNeeded(async (hobbyId, lessonId, completed) => {
+    void migrateLocalProgressIfNeeded(async (hobbyId, lessonId, completed, setAsCurrent) => {
       const updateFn = httpsCallable<
-        { hobbyId: string; lessonId: string; completed: boolean },
+        {
+          hobbyId: string;
+          lessonId: string;
+          completed: boolean;
+          setAsCurrent?: boolean;
+        },
         UpdateLearningProgressResponse
       >(functions, 'updateLearningProgress');
-      const result = await updateFn({ hobbyId, lessonId, completed });
+      const result = await updateFn({
+        hobbyId,
+        lessonId,
+        completed,
+        ...(typeof setAsCurrent === 'boolean' ? { setAsCurrent } : {}),
+      });
       dispatch(
         setLearningProgress({
           hobbyId,

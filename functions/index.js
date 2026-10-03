@@ -376,7 +376,7 @@ exports.updateLearningProgress = onCall(async (request) => {
   }
 
   const uid = request.auth.uid;
-  const { hobbyId, lessonId, completed } = request.data ?? {};
+  const { hobbyId, lessonId, completed, setAsCurrent } = request.data ?? {};
   if (!hobbyId || !lessonId || typeof completed !== 'boolean') {
     throw new HttpsError('invalid-argument', 'hobbyId, lessonId, and completed are required');
   }
@@ -384,8 +384,15 @@ exports.updateLearningProgress = onCall(async (request) => {
   const journeyRef = db.collection('users').doc(uid).collection('journeys').doc(hobbyId);
   const journeySnap = await journeyRef.get();
 
+  const initialLearningProgress = {
+    currentLessonId: null,
+    completedLessonIds: [],
+    lastActivityAt: null,
+  };
+
   if (!journeySnap.exists) {
-    // Learning progress can exist without a daily journey template
+    // Learning progress can exist without a daily journey template.
+    // currentLessonId starts null so a completion-only write can keep it null.
     await journeyRef.set({
       hobbyId,
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -396,28 +403,40 @@ exports.updateLearningProgress = onCall(async (request) => {
       completedDays: [],
       milestones: [],
       totalDays: 365,
+      learningProgress: initialLearningProgress,
     });
   }
 
-  const existing = journeySnap.exists ? journeySnap.data() : {};
-  const prev = existing.learningProgress ?? {
-    currentLessonId: null,
-    completedLessonIds: [],
-    lastActivityAt: null,
-  };
+  const existing = journeySnap.exists
+    ? (journeySnap.data() ?? {})
+    : { learningProgress: initialLearningProgress };
+  const prev = existing.learningProgress ?? initialLearningProgress;
 
-  const completedLessonIds = Array.isArray(prev.completedLessonIds)
-    ? [...prev.completedLessonIds]
-    : [];
+  const completedLessonIds = [];
+  const seenLessonIds = new Set();
+  if (Array.isArray(prev.completedLessonIds)) {
+    for (const id of prev.completedLessonIds) {
+      if (!seenLessonIds.has(id)) {
+        seenLessonIds.add(id);
+        completedLessonIds.push(id);
+      }
+    }
+  }
 
   if (completed) {
-    if (!completedLessonIds.includes(lessonId)) {
+    if (!seenLessonIds.has(lessonId)) {
       completedLessonIds.push(lessonId);
+    }
+  } else {
+    for (let i = completedLessonIds.length - 1; i >= 0; i -= 1) {
+      if (completedLessonIds[i] === lessonId) {
+        completedLessonIds.splice(i, 1);
+      }
     }
   }
 
   const learningProgress = {
-    currentLessonId: lessonId,
+    currentLessonId: setAsCurrent === false ? (prev.currentLessonId ?? null) : lessonId,
     completedLessonIds,
     lastActivityAt: admin.firestore.FieldValue.serverTimestamp(),
   };
