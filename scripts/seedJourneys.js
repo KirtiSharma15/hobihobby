@@ -35,7 +35,6 @@ const VALID_HOBBY_IDS = new Set([
 
 const DAY_REQUIRED_FIELDS = ['day', 'title', 'description', 'duration', 'type', 'tip'];
 const TEMPLATE_DIR = path.join(__dirname, 'journeyTemplates');
-const EXPECTED_DAY_COUNT = 7;
 
 const isDryRun = process.argv.includes('--dry-run');
 
@@ -57,19 +56,20 @@ function validateTemplate(data, hobbyIdFromFilename) {
   if (typeof template.hobbyName !== 'string' || !template.hobbyName.trim()) {
     return { ok: false, reason: 'missing or invalid hobbyName' };
   }
-  if (typeof template.totalDays !== 'number' || !Number.isFinite(template.totalDays)) {
-    return { ok: false, reason: 'missing or invalid totalDays' };
+  if (!Number.isInteger(template.totalDays) || template.totalDays < 1) {
+    return { ok: false, reason: 'totalDays must be a positive integer' };
   }
-  if (!Array.isArray(template.days)) {
-    return { ok: false, reason: 'days must be an array' };
+  if (!Array.isArray(template.days) || template.days.length === 0) {
+    return { ok: false, reason: 'days must be a non-empty array' };
   }
-  if (template.days.length !== EXPECTED_DAY_COUNT) {
+  if (template.totalDays !== template.days.length) {
     return {
       ok: false,
-      reason: `days must contain exactly ${EXPECTED_DAY_COUNT} entries (got ${template.days.length})`,
+      reason: `totalDays (${template.totalDays}) must equal days.length (${template.days.length})`,
     };
   }
 
+  const seenDays = new Set();
   for (let i = 0; i < template.days.length; i++) {
     const dayEntry = template.days[i];
     if (!dayEntry || typeof dayEntry !== 'object' || Array.isArray(dayEntry)) {
@@ -79,6 +79,20 @@ function validateTemplate(data, hobbyIdFromFilename) {
       if (dayEntry[field] === undefined || dayEntry[field] === null || dayEntry[field] === '') {
         return { ok: false, reason: `days[${i}] missing required field "${field}"` };
       }
+    }
+    if (!Number.isInteger(dayEntry.day)) {
+      return { ok: false, reason: `days[${i}].day must be an integer` };
+    }
+    if (seenDays.has(dayEntry.day)) {
+      return { ok: false, reason: `duplicate day ${dayEntry.day}` };
+    }
+    seenDays.add(dayEntry.day);
+    const expectedDay = i + 1;
+    if (dayEntry.day !== expectedDay) {
+      return {
+        ok: false,
+        reason: `days must be ordered 1 through ${template.totalDays} (days[${i}].day is ${dayEntry.day})`,
+      };
     }
   }
 

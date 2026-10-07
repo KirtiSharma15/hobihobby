@@ -59,7 +59,7 @@ function extractJsonText(text) {
 }
 
 function buildDayPrompt({ hobbyName, category, difficulty, day }) {
-  return `You are planning visual content for a hobby-learning app called HobiHobby. The app teaches ${hobbyName} (category: ${category}, difficulty: ${difficulty}) through a 365-day journey of small daily tasks.
+  return `You are planning visual content for a hobby-learning app called HobiHobby. The app teaches ${hobbyName} (category: ${category}, difficulty: ${difficulty}) through a structured day-by-day hobby journey of small daily tasks.
 
 This app is designed to feel fun and approachable, NOT like a dense text-based course. Users should be able to glance at an image and understand what to do, rather than reading a paragraph.
 

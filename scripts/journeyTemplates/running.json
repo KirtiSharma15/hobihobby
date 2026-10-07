@@ -1,7 +1,7 @@
 {
   "hobbyId": "running",
   "hobbyName": "Running",
-  "totalDays": 365,
+  "totalDays": 7,
   "days": [
     {
       "day": 1,

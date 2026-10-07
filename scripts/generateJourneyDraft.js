@@ -343,19 +343,23 @@ function validateTemplate(data, hobbyId) {
   if (typeof template.hobbyName !== 'string' || !template.hobbyName.trim()) {
     return { ok: false, reason: 'missing or invalid hobbyName' };
   }
-  if (typeof template.totalDays !== 'number' || !Number.isFinite(template.totalDays)) {
-    return { ok: false, reason: 'missing or invalid totalDays' };
+  if (!Number.isInteger(template.totalDays) || template.totalDays !== EXPECTED_DAY_COUNT) {
+    return {
+      ok: false,
+      reason: `totalDays must be ${EXPECTED_DAY_COUNT} (got ${String(template.totalDays)})`,
+    };
   }
   if (!Array.isArray(template.days)) {
     return { ok: false, reason: 'days must be an array' };
   }
-  if (template.days.length !== EXPECTED_DAY_COUNT) {
+  if (template.days.length !== EXPECTED_DAY_COUNT || template.totalDays !== template.days.length) {
     return {
       ok: false,
-      reason: `days must contain exactly ${EXPECTED_DAY_COUNT} entries (got ${template.days.length})`,
+      reason: `totalDays, days.length, and ${EXPECTED_DAY_COUNT} must match (totalDays ${template.totalDays}, days.length ${template.days.length})`,
     };
   }
 
+  const seenDays = new Set();
   for (let i = 0; i < template.days.length; i++) {
     const dayEntry = template.days[i];
     if (!dayEntry || typeof dayEntry !== 'object' || Array.isArray(dayEntry)) {
@@ -365,6 +369,20 @@ function validateTemplate(data, hobbyId) {
       if (dayEntry[field] === undefined || dayEntry[field] === null || dayEntry[field] === '') {
         return { ok: false, reason: `days[${i}] missing required field "${field}"` };
       }
+    }
+    if (!Number.isInteger(dayEntry.day)) {
+      return { ok: false, reason: `days[${i}].day must be an integer` };
+    }
+    if (seenDays.has(dayEntry.day)) {
+      return { ok: false, reason: `duplicate day ${dayEntry.day}` };
+    }
+    seenDays.add(dayEntry.day);
+    const expectedDay = i + 1;
+    if (dayEntry.day !== expectedDay) {
+      return {
+        ok: false,
+        reason: `days must be ordered 1 through ${EXPECTED_DAY_COUNT} (days[${i}].day is ${dayEntry.day})`,
+      };
     }
   }
 
@@ -412,22 +430,22 @@ Return a single JSON object with this exact schema:
 {
   "hobbyId": "${hobbyId}",
   "hobbyName": "${hobby.name}",
-  "totalDays": 365,
+  "totalDays": ${EXPECTED_DAY_COUNT},
   "days": [
     { "day": 1, "title": "...", "description": "...", "duration": "...", "type": "...", "tip": "..." }
   ]
 }
 
 RULES:
-- Exactly 7 day objects in "days", numbered day 1 through day 7.
+- Exactly ${EXPECTED_DAY_COUNT} day objects in "days", numbered day 1 through day ${EXPECTED_DAY_COUNT}.
 - Each day must include: day, title, description, duration, type, tip.
 - Day 1 must be a zero-equipment-needed first action (bodyweight, observation, or household items only).
-- Days must progress in difficulty from day 1 to day 7.
+- Days must progress in difficulty from day 1 to day ${EXPECTED_DAY_COUNT}.
 - Descriptions must be specific and actionable, not generic. Prefer "try X technique for N minutes" over "learn the basics".
 - Tips must be a single practical insight, not encouragement or motivation.
 - duration should look like "15 min", "20 min", "30 min", etc.
 - type should be a short label like the example (practice, watch + try, reflect, experiment, project, etc.).
-- Day 7 should be a week-1 review / reflect style day, matching the example pattern.
+- Day ${EXPECTED_DAY_COUNT} should be a week-1 review / reflect style day, matching the example pattern.
 - Return raw JSON only. No markdown fences. No commentary.`;
 }
 
@@ -508,7 +526,7 @@ async function main() {
   parsed.hobbyId = hobbyId;
   parsed.hobbyName = hobby.name;
   if (typeof parsed.totalDays !== 'number') {
-    parsed.totalDays = 365;
+    parsed.totalDays = EXPECTED_DAY_COUNT;
   }
 
   const validation = validateTemplate(parsed, hobbyId);
