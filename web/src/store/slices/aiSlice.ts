@@ -8,6 +8,7 @@ export interface Message {
 }
 
 export interface HobbyRecommendation {
+  hobbyId: string;
   hobby: string;
   matchScore: number;
   reasoning: string;

@@ -6,8 +6,6 @@ import { useSaveHobby } from '../hooks/useSaveHobby';
 import { HobbyRecommendation } from '../store/slices/aiSlice';
 import { cn } from '../utils/cn';
 
-const slugify = (name: string) => name.toLowerCase().trim().replace(/\s+/g, '-');
-
 const getDifficultyStyle = (difficulty: string) => {
   const d = difficulty.toLowerCase();
   if (d.includes('advanced')) return 'bg-terracotta/10 text-terracotta';
@@ -49,7 +47,7 @@ interface CardProps {
 }
 
 const TopPickCard: React.FC<CardProps> = ({ rec, index }) => {
-  const hobbyId = slugify(rec.hobby);
+  const hobbyId = rec.hobbyId;
   const { isSaved, toggleSave } = useSaveHobby(hobbyId);
   const navigate = useNavigate();
 
@@ -119,7 +117,7 @@ const TopPickCard: React.FC<CardProps> = ({ rec, index }) => {
 };
 
 const StandardCard: React.FC<CardProps> = ({ rec, index }) => {
-  const hobbyId = slugify(rec.hobby);
+  const hobbyId = rec.hobbyId;
   const { isSaved, toggleSave } = useSaveHobby(hobbyId);
   const navigate = useNavigate();
 
@@ -174,7 +172,7 @@ const QuizResultsPage: React.FC = () => {
   const navigate = useNavigate();
   const firstName = profile?.displayName?.split(' ')[0] || 'there';
   const topPick = recommendations[0];
-  const topPickId = topPick ? slugify(topPick.hobby) : '';
+  const topPickId = topPick ? topPick.hobbyId : '';
 
   if (recommendations.length === 0) {
     return (
@@ -239,7 +237,7 @@ const QuizResultsPage: React.FC = () => {
           {recommendations.length > 1 && (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {recommendations.slice(1).map((rec, index) => (
-                <StandardCard key={rec.hobby} rec={rec} index={index + 1} />
+                <StandardCard key={rec.hobbyId} rec={rec} index={index + 1} />
               ))}
             </div>
           )}

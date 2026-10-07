@@ -119,6 +119,161 @@ exports.syncUser = onCall(async (request) => {
   return { isNewUser: false, data: userSnap.data() };
 });
 
+function asQuizText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function asQuizStringList(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item) => typeof item === 'string' && item.trim())
+    .map((item) => item.trim());
+}
+
+function asQuizNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function formatStarterCostAed(estimatedCostAED) {
+  if (typeof estimatedCostAED !== 'number' || !Number.isFinite(estimatedCostAED) || estimatedCostAED < 0) {
+    return 'AED starter';
+  }
+  return `AED ${Math.round(estimatedCostAED)} starter`;
+}
+
+function toQuizCatalogCandidate(docSnap) {
+  const data = docSnap.data() || {};
+  const name = asQuizText(data.name);
+  if (!name) return null;
+  return {
+    hobbyId: docSnap.id,
+    name,
+    category: asQuizText(data.category),
+    subcategory: asQuizText(data.subcategory),
+    difficulty: asQuizText(data.difficulty),
+    timePerWeek: asQuizText(data.timePerWeek),
+    timeMinutes: asQuizNumber(data.timeMinutes),
+    estimatedCostAED: asQuizNumber(data.estimatedCostAED),
+    costRange: asQuizText(data.costRange),
+    indoorOutdoor: asQuizText(data.indoorOutdoor),
+    soloGroup: asQuizText(data.soloGroup),
+    tags: asQuizStringList(data.tags),
+    matchTags: asQuizStringList(data.matchTags),
+    description: asQuizText(data.description),
+  };
+}
+
+async function loadQuizCatalogCandidates() {
+  let snap;
+  try {
+    snap = await db.collection('hobbies').get();
+  } catch (error) {
+    console.error('hobbyQuiz Firestore read failed:', error?.message || error);
+    throw new HttpsError('internal', 'Failed to load hobby catalog');
+  }
+
+  const candidates = [];
+  snap.forEach((docSnap) => {
+    const candidate = toQuizCatalogCandidate(docSnap);
+    if (candidate) candidates.push(candidate);
+  });
+  candidates.sort((a, b) => a.hobbyId.localeCompare(b.hobbyId));
+  return candidates;
+}
+
+function buildHobbyQuizPrompt() {
+  return [
+    'You rank hobbies from the HobiHobby catalog for a user who just finished the discovery quiz.',
+    'Return ONLY valid JSON with no markdown, using this shape:',
+    '{',
+    '  "selections": [',
+    '    {',
+    '      "hobbyId": "id from the supplied catalog",',
+    '      "matchScore": 92,',
+    '      "reasoning": "Why this catalog hobby fits the quiz answers."',
+    '    }',
+    '  ]',
+    '}',
+    'Rules:',
+    '- Select at most 5 hobby IDs from the supplied catalog.',
+    '- Select only hobby IDs that appear in the catalog.',
+    '- Never create a hobby id.',
+    '- Never invent a hobby.',
+    '- Do not provide hobby name, difficulty, time, cost, category, or any other catalog fact.',
+    '- matchScore is a number from 0 to 100.',
+    '- reasoning explains the fit. Do not describe a different hobby.',
+  ].join('\n');
+}
+
+function clampMatchScore(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return Math.round(Math.min(100, Math.max(0, value)));
+}
+
+function readQuizSelections(raw, candidatesById) {
+  const cleaned = String(raw).replace(/```json|```/g, '').trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch (error) {
+    console.error('Failed to parse Gemini response as JSON (hobbyQuiz):', raw);
+    throw new HttpsError('internal', 'Failed to parse hobby recommendations');
+  }
+
+  const selections = parsed && Array.isArray(parsed.selections) ? parsed.selections : [];
+  const seen = new Set();
+  const chosen = [];
+  const ignoredIds = [];
+
+  for (const selection of selections) {
+    const hobbyId = selection && typeof selection.hobbyId === 'string'
+      ? selection.hobbyId.trim()
+      : '';
+    if (!hobbyId || !candidatesById.has(hobbyId)) {
+      if (hobbyId) ignoredIds.push(hobbyId);
+      continue;
+    }
+    if (seen.has(hobbyId)) continue;
+    const matchScore = clampMatchScore(selection && selection.matchScore);
+    if (matchScore === null) continue;
+    seen.add(hobbyId);
+    const reasoning = selection && typeof selection.reasoning === 'string' && selection.reasoning.trim()
+      ? selection.reasoning.trim()
+      : 'This catalog hobby fits your quiz answers.';
+    chosen.push({ candidate: candidatesById.get(hobbyId), matchScore, reasoning });
+  }
+
+  if (ignoredIds.length > 0) {
+    console.error('hobbyQuiz ignored unknown hobby ids:', ignoredIds);
+  }
+
+  chosen.sort((a, b) => (
+    b.matchScore - a.matchScore || a.candidate.hobbyId.localeCompare(b.candidate.hobbyId)
+  ));
+  return chosen.slice(0, 5);
+}
+
+function toPublicQuizRecommendation(candidate, matchScore, reasoning) {
+  return {
+    hobbyId: candidate.hobbyId,
+    hobby: candidate.name,
+    matchScore,
+    reasoning,
+    timeCommitment: candidate.timePerWeek,
+    estimatedCost: formatStarterCostAed(candidate.estimatedCostAED),
+    difficulty: candidate.difficulty,
+    category: candidate.category,
+  };
+}
+
+function quizAnswersForPrompt(quizAnswers) {
+  const safeAnswers = {};
+  for (const [key, value] of Object.entries(quizAnswers)) {
+    if (typeof value === 'string') safeAnswers[key] = value;
+  }
+  return safeAnswers;
+}
+
 // ─── AI: Hobby Quiz → Recommendations ────────────────────────────────────
 exports.hobbyQuiz = onCall(
   { secrets: ['GEMINI_API_KEY'] },
@@ -127,60 +282,39 @@ exports.hobbyQuiz = onCall(
       throw new HttpsError('unauthenticated', 'Must be logged in');
     }
 
-    const { quizAnswers } = request.data;
-
-    const prompt = `You are a hobby recommendation engine for HobiHobby app.
-Based on these quiz answers, return ONLY a valid JSON object with no markdown:
-{
-  "recommendations": [
-    {
-      "hobby": "Photography",
-      "matchScore": 92,
-      "reasoning": "Suits your love of outdoor exploration and visual creativity",
-      "timeCommitment": "3-5 hrs/week",
-      "estimatedCost": "$150 starter",
-      "difficulty": "beginner",
-      "category": "Creative"
-    }
-  ]
-}
-
-User quiz answers: ${JSON.stringify(quizAnswers)}
-Return top 5 hobby recommendations ordered by matchScore descending.`;
-
-    let response;
-    try {
-      response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-            // Disable thinking: this is a straightforward structured-JSON task and
-            // thinking tokens would otherwise eat into maxOutputTokens and truncate the JSON.
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }
-      );
-    } catch (error) {
-      const message = error.response?.data?.error?.message || error.message || 'Gemini API request failed';
-      console.error('Gemini API error (hobbyQuiz):', message, error.response?.data);
-      throw new HttpsError('internal', message);
+    const quizAnswers = request.data?.quizAnswers;
+    if (!quizAnswers || typeof quizAnswers !== 'object' || Array.isArray(quizAnswers)) {
+      throw new HttpsError('invalid-argument', 'quizAnswers are required');
     }
 
-    const raw = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!raw) {
-      throw new HttpsError('internal', 'No response from Gemini');
+    const candidates = await loadQuizCatalogCandidates();
+    if (candidates.length === 0) {
+      return { recommendations: [] };
     }
 
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    try {
-      return JSON.parse(cleaned);
-    } catch (error) {
-      console.error('Failed to parse Gemini response as JSON (hobbyQuiz):', raw);
-      throw new HttpsError('internal', 'Failed to parse hobby recommendations');
-    }
+    const candidatesById = new Map(candidates.map((candidate) => [candidate.hobbyId, candidate]));
+    const reply = await callGemini({
+      systemText: buildHobbyQuizPrompt(),
+      contents: [{
+        role: 'user',
+        parts: [{
+          text: JSON.stringify({
+            quizAnswers: quizAnswersForPrompt(quizAnswers),
+            catalog: candidates,
+          }),
+        }],
+      }],
+      temperature: 0.4,
+      maxOutputTokens: 1024,
+      thinkingBudget: 0,
+    });
+
+    const chosen = readQuizSelections(reply, candidatesById);
+    return {
+      recommendations: chosen.map(({ candidate, matchScore, reasoning }) => (
+        toPublicQuizRecommendation(candidate, matchScore, reasoning)
+      )),
+    };
   }
 );
 
